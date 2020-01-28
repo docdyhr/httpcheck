@@ -4,7 +4,7 @@
 
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
-Release date: 18. Januar 2019
+Release date: 28. Januar 2019
 Version: 1.0
 
 """
