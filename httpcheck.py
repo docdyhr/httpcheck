@@ -20,7 +20,6 @@ import textwrap
 import requests
 
 
-
 VERSION = "1.0"
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
@@ -96,14 +95,16 @@ STATUS_CODES_JSON = """{
 
 # TODO:
 # option -r for checking only redirects with redirects site info
-# add support for piping into httpcheck, see argpase  - 'FileType objects' stdin
-# add support for 'Customizing file parsing' to allow /remove empty lines with withe space to occur
+# add support for piping into httpcheck, see argpase  - 'FileType objects'
+# stdin
+# add support for 'Customizing file parsing' to allow /remove empty lines with
+# withe space to occur
 #
 def get_arguments():
     """Handle webiste arguments."""
     parser = argparse.ArgumentParser(
         # epilog=f'List of HTTP status codes: {INFO}',
-        fromfile_prefix_chars='@', # read arguments from file ex. @domains.txt
+        fromfile_prefix_chars='@',  # read arguments from file ex. @domains.txt
         # argument_default=argparse.SUPPRESS,
         # description='%(prog)s @filename to read websites from a file',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -120,9 +121,9 @@ def get_arguments():
         version=f'%(prog)s {VERSION}')
     parser.add_argument(
         'site',
-        type=url_validation, # Input validation with url_validation()
+        type=url_validation,  # Input validation with url_validation()
         action='store',
-        nargs='*', # flexible number of values - incl. None / see parser.error
+        nargs='*',  # flexible number of values - incl. None / see parser.error
         help="return http status codes for one or more websites")
     # parser.add_argument(
     #     '-t',
@@ -134,51 +135,53 @@ def get_arguments():
     group.add_argument(
         '-q',
         '--quiet',
-        action='store_true', # flag only no args stores True / False value
+        action='store_true',  # flag only no args stores True / False value
         dest='quiet',
         help='only print errors')
     group.add_argument(
         '-v',
         '--verbose',
-        action='store_true', # flag only no args stores True / False value
+        action='store_true',  # flag only no args stores True / False value
         dest='verbose',
         help='increase output verbosity')
     group.add_argument(
         '-c',
         '--code',
-        action='store_true', # flag only no args stores True / False value
+        action='store_true',  # flag only no args stores True / False value
         dest='code',
         help='only print status code')
     options = parser.parse_args()
     if not options.site:
         parser.error(
-            "[-] Please specify a website or a file with sites to check, use --help for more info.")
+            "[-] Please specify a website or a file with sites to check,"
+            "use --help for more info.")
 
     return options
 
 
 def url_validation(site_url):
     """Validate website from user"""
-    # TODO: catch empty lines from @file with regex = ("<([a-zA-Z_0-9]*)>")
-    # Find a more concise yet libral version of regex domain see https://bit.ly/2FZLvHR
+    # TODO: catch empty lines from @file
+    # Find a more concise yet libral version of regex domain see
+    # https://bit.ly/2FZLvHR
     #
     # conversion of 'no' url to url
     site_url = site_url if site_url.startswith('http') else f'http://{site_url}'
     # check url with regex
 
-
     regex = re.compile(
-        r'^(?:http|ftp)s?://' # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain
-        r'localhost|' #localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
-        r'(?::\d+)?' # optional port
+        r'^(?:http|ftp)s?://'  # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain
+        r'localhost|'  # localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+        r'(?::\d+)?'  # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
     if re.match(regex, site_url) is not None:
         return site_url
     msg = f"[-] Invalid URL: '{site_url}'"
     raise argparse.ArgumentTypeError(msg)
+
 
 # TODO: Fix function call and exceptions handling
 def tld_check(url):
@@ -198,7 +201,7 @@ def tld_check(url):
         #    i=-1: ["uk"] etc
 
         candidate = ".".join(last_i_elements)  # abcde.co.uk, co.uk, uk
-        wildcard_candidate = ".".join(["*"] + last_i_elements[1:])  # *.co.uk, *.uk, *
+        wildcard_candidate = ".".join(["*"] + last_i_elements[1:])  # *.co.uk
         exception_candidate = "!" + candidate
 
         # match tlds:
@@ -211,6 +214,7 @@ def tld_check(url):
     msg = f"[-] Domain not in global list of TLDs: '{url}'"
     raise argparse.ArgumentTypeError(msg)
 
+
 def check_site(site):
     """Check webiste status code"""
 
@@ -219,7 +223,7 @@ def check_site(site):
 
     try:
         # Returns a response object
-        response = requests.get(site, headers=custom_header, timeout=3) # timoout to avoid hangs
+        response = requests.get(site, headers=custom_header, timeout=3)
         return response.status_code
 
     except requests.exceptions.Timeout:
@@ -236,13 +240,11 @@ def print_format(status, url, quiet, verbose, code):
     status_codes = json.loads(STATUS_CODES_JSON)  # get staus codes from above
     # Get domain name with urlparse
     domain_parser = urlparse(url)
-    # domain = domain_parser.netloc.split(':')[0] # get netloc, split & first element
-    domain = domain_parser.hostname # urllib.parse has a 'hostname' atribute!
-
+    domain = domain_parser.hostname
 
     if verbose and status in ('[timeout]', '[connection error]'):
         print(f'[-] {domain} -->  {status} Error')
-    elif verbose and not status in ('[timeout]', '[connection error]'):
+    elif verbose and status not in ('[timeout]', '[connection error]'):
         if 100 <= status < 200:
             print(f'[+] {domain} --> Info: {status} '
                   f'{status_codes.get(str(status))}')
@@ -270,10 +272,11 @@ def print_format(status, url, quiet, verbose, code):
     else:
         print(f'{domain} {status}')
 
+
 def main():
     """Check websites central"""
-    options = get_arguments() # Get arguments
-    #print(vars(options)) # DEBUG: Print arguments
+    options = get_arguments()  # Get arguments
+    # print(vars(options)) # DEBUG: Print arguments
     if options.verbose:
         now = datetime.now()
         date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -281,7 +284,7 @@ def main():
     for site in options.site:
         # if options.tld:
         #     tld_check(site)
-        status = check_site(site) # Check & get HTTP Status code
+        status = check_site(site)  # Check & get HTTP Status code
         print_format(status, site, options.quiet, options.verbose, options.code)
 
 
