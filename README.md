@@ -1,27 +1,22 @@
 # Check Websites HTTP Status Codes with httpcheck
-
 * Name: httpcheck
 * Version: 1.0
 * Programming language: Python 3
 * Author: Thomas Juul Dyhr - [thomas@dyhr.com](mailto:thomas@dyhr.com)
 * Purpose: CLI tool to Check Website HTTP Status
 * Release date: 28. Jan 2020
-
-
-## usage: httpcheck [-h] [--version] [-q | -v | -c] [site [site ...]]
-httpcheck.py: error: [-] Please specify a website or a file with sites to check, use --help for more info.
-
-## positional arguments:
+### usage: httpcheck [-h] [--version] [-q | -v | -c] [site [site ...]]
+httpcheck.py: error: [-] Please specify a website or a file with sites to check  
+use --help for more info.
+### positional arguments:
   site           return http status codes for one or more websites
-
-## optional arguments:
+### optional arguments:
   -h, --help     show this help message and exit.  
-  --version      show program's version number and exit. 
-  -q, --quiet    only print errors. 
-  -v, --verbose  increase output verbosity. 
-  -c, --code     only print status code. 
-
-## additional information:
+  --version      show program's version number and exit.  
+  -q, --quiet    only print errors.   
+  -v, --verbose  increase output verbosity.  
+  -c, --code     only print status code.  
+### additional information:
   enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'  
   read sites from a file: 'httpcheck @domains.txt'. 
 
