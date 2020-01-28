@@ -1,0 +1,5 @@
+http://duckduckgo.com
+bing.com
+http://api.github.com/invalid
+https://google.com
+1.1.1.1

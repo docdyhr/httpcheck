@@ -1,0 +1,10 @@
+http://duckduckgo.com
+bing.com
+http://api.github.com/invalid
+https://google.com
+1.1.1.1
+facebook.com
+https://keybase.io
+api.github.com
+bbc.co.uk
+https://developer.apple.com
