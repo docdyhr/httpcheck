@@ -2,7 +2,7 @@
 * Name: httpcheck
 * Version: 1.0
 * Programming language: Python 3
-* Author: Thomas Juul Dyhr - [thomas@dyhr.com](mailto:thomas@dyhr.com)
+* Author: @docdyhr
 * Purpose: CLI tool to Check Website HTTP Status
 * Release date: 28. Jan 2020
 ### usage: httpcheck [-h] [--version] [-q | -v | -c] [site [site ...]]
