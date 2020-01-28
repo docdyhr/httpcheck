@@ -15,15 +15,15 @@ httpcheck.py: error: [-] Please specify a website or a file with sites to check,
   site           return http status codes for one or more websites
 
 ## optional arguments:
-  -h, --help     show this help message and exit
-  --version      show program's version number and exit
-  -q, --quiet    only print errors
-  -v, --verbose  increase output verbosity
-  -c, --code     only print status code
+  -h, --help     show this help message and exit.  
+  --version      show program's version number and exit. 
+  -q, --quiet    only print errors. 
+  -v, --verbose  increase output verbosity. 
+  -c, --code     only print status code. 
 
 ## additional information:
-  enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'
-  read sites from a file: 'httpcheck @domains.txt'
+  enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'  
+  read sites from a file: 'httpcheck @domains.txt'. 
 
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
