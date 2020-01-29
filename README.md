@@ -25,6 +25,29 @@ use --help for more info.
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
 ### Installation
+Clone repo and install requirements.
+### Clone the repository
+```shell
+git clone https://github.com/docdyhr/httpcheck
+cd httpcheck/
+```
+### Install requirements
+```shell
+python3 -m pip install -r requirements.txt --user
+```
+
+### Notes
+Set up a virtual environment with venv.
+```shell
+python3 -m venv .venv
+```
+or 
+
+```shell
+mv httpcheck.py ~/bin/httpcheck # or any other bin folder
+chmod + ~/bin/httpcheck
+```
+
 
 ### License
 [MIT](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
