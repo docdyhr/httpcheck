@@ -6,4 +6,4 @@
 * refactor to use 'from requests.exceptions import HTTPError' in requests err instead of custom check
 * implement advanced option for setting timeout length
 * option for set number of times to try if timeout errror
-* figure out the correct use of pipe with | ie. 'httpcheck -' for piping into httpcheck
+* figure out the correct use of pipe with | ie. 'httpcheck -' for piping into httpcheck, see FileType and Nargs within argparse - https://docs.python.org/3.8/library/argparse.html#nargs
