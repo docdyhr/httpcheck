@@ -8,8 +8,6 @@
 * Purpose: CLI tool to Check Website HTTP Status
 * Release date: 28. Jan 2020
 ### usage: httpcheck [-h] [--version] [-q | -v | -c] [site [site ...]]
-httpcheck.py: error: [-] Please specify a website or a file with sites to check  
-use --help for more info.
 ### positional arguments:
   site           return http status codes for one or more websites
 ### optional arguments:
