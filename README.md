@@ -75,6 +75,6 @@ returs status code only ex. '200'
 checking one or more websites by constantly opening a browser seems a waste of time. Providing a cli tool that can be used in the shell, in a pipe or for scheduling tasks in cron seems the way to go.
 
 ### todo
-
+[todo](https://github.com/docdyhr/httpcheck/blob/master/TODO.md)
 ### license
 [MIT](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
