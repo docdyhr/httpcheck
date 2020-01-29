@@ -27,4 +27,4 @@ use --help for more info.
 ### Installation
 
 ### License
-![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
+[MIT](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
