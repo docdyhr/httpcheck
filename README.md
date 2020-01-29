@@ -22,6 +22,7 @@ use --help for more info.
 
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
+### Installation
 
-
+### License
 
