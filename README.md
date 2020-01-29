@@ -72,7 +72,7 @@ httpcheck -c 1.1.1.1
 returs status code only ex. '200'
 
 ### history
-checking one or more websites by constantly opening a browser seems a waste of time. Providing a cli tool that can be used in a bash shell, pipe or for scheduling tasks in cron, notifying the user, seems the way to go.
+checking one or more websites by constantly opening a browser seems a waste of time. Providing a cli tool that can be used in a bash shell, pipe or for scheduling tasks in cron, notifying the user, seems the way to go. The python requests library seems perfect for the job.
 
 ### todo
 [TODO.md](https://github.com/docdyhr/httpcheck/blob/master/TODO.md)
