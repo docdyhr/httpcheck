@@ -40,11 +40,13 @@ python3 -m pip install -r requirements.txt --user
 Set up a virtual environment with venv.
 ```shell
 python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 or 
 
 ```shell
-mv httpcheck.py ~/bin/httpcheck # or any other bin folder
+mv httpcheck.py ~/bin/httpcheck # or another bin dir
 chmod + ~/bin/httpcheck
 ```
 
