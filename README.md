@@ -1,3 +1,5 @@
+![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
+
 # Check Websites HTTP Status Codes with httpcheck
 * Name: httpcheck
 * Version: 1.0
@@ -25,4 +27,4 @@ use --help for more info.
 ### Installation
 
 ### License
-[MIT](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
+![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
