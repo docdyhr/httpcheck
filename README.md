@@ -23,7 +23,7 @@
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
 ### installation
-Clone repo and install requirements.
+clone repo and install requirements.
 ### clone the repository
 ```shell
 git clone https://github.com/docdyhr/httpcheck
@@ -35,7 +35,7 @@ python3 -m pip install -r requirements.txt --user
 ```
 
 ### alternative install
-Set up a virtual environment with venv.
+set up a virtual environment with venv.
 ```shell
 python3 -m venv .venv
 source .venv/bin/activate
