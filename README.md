@@ -44,7 +44,7 @@ pip install -r requirements.txt
 or 
 
 ```shell
-mv httpcheck.py ~/bin/httpcheck # or another bin dir
+mv httpcheck.py ~/bin/httpcheck # any other bin folder
 chmod + ~/bin/httpcheck
 ```
 
