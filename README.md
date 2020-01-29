@@ -34,7 +34,7 @@ cd httpcheck/
 python3 -m pip install -r requirements.txt --user
 ```
 
-### note
+### alternative install
 Set up a virtual environment with venv.
 ```shell
 python3 -m venv .venv
