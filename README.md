@@ -1,4 +1,4 @@
-![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/docdyhr/httpcheck) ![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/requests) ![GitHub repo size](https://img.shields.io/github/repo-size/docdyhr/httpcheck) ![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
 
 # Check Websites HTTP Status Codes with httpcheck
 * Name: httpcheck
