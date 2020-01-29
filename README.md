@@ -25,4 +25,4 @@ use --help for more info.
 ### Installation
 
 ### License
-https://github.com/docdyhr/httpcheck/blob/master/LICENSE
+[MIT License](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
