@@ -1,4 +1,4 @@
-## TODO:
+## Todo list for httpcheck:
 * implement advanced redirects check as a option
 * validate @files for empty lines
 * refactor to check domains against tlds - ex. https://github.com/barseghyanartur/tld/blob/master/src/tld/res/effective_tld_names.dat.txt
