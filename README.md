@@ -1,4 +1,4 @@
-![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/docdyhr/httpcheck) ![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
 
 # Check Websites HTTP Status Codes with httpcheck
 * Name: httpcheck
