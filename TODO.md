@@ -7,4 +7,4 @@
 * implement advanced option for setting timeout length
 * option for set number of times to try if timeout errror
 * figure out the correct use of pipe with | ie. 'httpcheck -' for piping into httpcheck, see FileType and Nargs within argparse - https://docs.python.org/3.8/library/argparse.html#nargs
-notification of user integration with email, message, popup, notification, phone 
+* notification of user integration with email, message, popup, notification, phone, see terminal-notifier
