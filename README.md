@@ -48,5 +48,34 @@ mv httpcheck.py ~/bin/httpcheck # any other bin folder
 chmod + ~/bin/httpcheck
 ```
 
+### usage
+Examples:
+```shell
+python3 httpcheck.py https://duckduckgo.com
+```
+returns 'duckduckgo.com 200'
+
+#### python from venv
+```shell
+python httpcheck.py -v https://api.github.com/invalid
+```
+returns verbose output '[-] api.github.com --> Client errors: 404 Not Found'
+
+#### installed as binary 
+```shell
+httpcheck -q @domains.txt
+```
+only returs http status code errors 'api.github.com 404'
+
+```shell
+httpcheck -c 1.1.1.1
+```
+returs '200' only
+
+### history
+checking one or more websites by constantly opening a browser seems a waste of time. 
+
+### todo
+
 ### license
 [MIT](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
