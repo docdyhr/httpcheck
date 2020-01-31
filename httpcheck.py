@@ -285,7 +285,8 @@ def main():
         # if options.tld:
         #     tld_check(site)
         status = check_site(site)  # Check & get HTTP Status code
-        print_format(status, site, options.quiet, options.verbose, options.code)
+        print_format(status, site, options.quiet,
+                     options.verbose, options.code)
 
 
 if __name__ == '__main__':
