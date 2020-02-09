@@ -10,6 +10,7 @@ Version: 1.0
 """
 
 from __future__ import with_statement
+import sys
 from datetime import datetime
 from urllib.parse import urlparse
 # from requests.exceptions import HTTPError
@@ -122,6 +123,7 @@ def get_arguments():
     parser.add_argument(
         'site',
         type=url_validation,  # Input validation with url_validation()
+        default=sys.stdin,
         action='store',
         nargs='*',  # flexible number of values - incl. None / see parser.error
         help="return http status codes for one or more websites")
