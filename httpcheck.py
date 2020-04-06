@@ -223,7 +223,7 @@ def check_site(site):
 
     try:
         # Returns a response object
-        response = requests.get(site, headers=custom_header, timeout=3)
+        response = requests.get(site, headers=custom_header, timeout=5)
         return response.status_code
 
     except requests.exceptions.Timeout:

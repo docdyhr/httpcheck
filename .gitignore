@@ -182,5 +182,8 @@ pip-selfcheck.json
 
 # End of https://www.gitignore.io/api/venv,macos,python,sublimetext
 
+# VS Code
+.vscode
+
 # exclude private files
 private*
