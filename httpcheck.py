@@ -21,6 +21,9 @@ import requests
 
 
 VERSION = "1.0"
+# Include headers in request to avoid false 406 positives
+HEADERS = {'User-Agent': f'httpcheck Agent {VERSION}'}
+SITE_TIMEOUT = 5
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 STATUS_CODES_JSON = """{
@@ -99,7 +102,7 @@ STATUS_CODES_JSON = """{
 # stdin
 # add support for 'Customizing file parsing' to allow /remove empty lines with
 # withe space to occur
-#
+# add default file domains.txt
 def get_arguments():
     """Handle webiste arguments."""
     parser = argparse.ArgumentParser(
@@ -115,10 +118,6 @@ def get_arguments():
 
            [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
          '''))
-    parser.add_argument(
-        '--version',
-        action='version',
-        version=f'%(prog)s {VERSION}')
     parser.add_argument(
         'site',
         type=url_validation,  # Input validation with url_validation()
@@ -150,6 +149,10 @@ def get_arguments():
         action='store_true',  # flag only no args stores True / False value
         dest='code',
         help='only print status code')
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}')
     options = parser.parse_args()
     if not options.site:
         parser.error(
@@ -218,12 +221,10 @@ def tld_check(url):
 def check_site(site):
     """Check webiste status code"""
 
-    # Include headers in request to avoid false 406 positives
-    custom_header = {'User-Agent': 'httpcheck Agent 1.0'}
-
     try:
         # Returns a response object
-        response = requests.get(site, headers=custom_header, timeout=5)
+        response = requests.get(site, headers=HEADERS,
+                                timeout=SITE_TIMEOUT)
         return response.status_code
 
     except requests.exceptions.Timeout:
@@ -276,7 +277,7 @@ def print_format(status, url, quiet, verbose, code):
 def main():
     """Check websites central"""
     options = get_arguments()  # Get arguments
-    # print(vars(options)) # DEBUG: Print arguments
+    # print(f"DEBUG: (options): {vars(options)}") # DEBUG: Print arguments
     if options.verbose:
         now = datetime.now()
         date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
