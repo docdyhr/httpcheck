@@ -4,8 +4,8 @@
 
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
-Release date: 28. Januar 2019
-Version: 1.0
+Release date: 17. December 2020
+Version: 1.0.1
 
 """
 
@@ -20,7 +20,7 @@ import textwrap
 import requests
 
 
-VERSION = "1.0"
+VERSION = "1.0.1"
 # Include headers in request to avoid false 406 positives
 HEADERS = {'User-Agent': f'httpcheck Agent {VERSION}'}
 SITE_TIMEOUT = 5
@@ -104,7 +104,7 @@ STATUS_CODES_JSON = """{
 # withe space to occur
 # add default file domains.txt
 def get_arguments():
-    """Handle webiste arguments."""
+    """Handle website arguments."""
     parser = argparse.ArgumentParser(
         # epilog=f'List of HTTP status codes: {INFO}',
         fromfile_prefix_chars='@',  # read arguments from file ex. @domains.txt

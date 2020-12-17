@@ -187,3 +187,11 @@ pip-selfcheck.json
 
 # exclude private files
 private*
+
+# iCloud
+.httpcheck.sublime-workspace.icloud
+
+### Python bin directories ###
+bin/
+include/
+lib/
