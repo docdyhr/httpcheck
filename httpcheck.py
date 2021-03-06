@@ -123,7 +123,8 @@ def get_arguments():
     parser.add_argument(
         'site',
         type=url_validation,  # Input validation with url_validation()
-        default=sys.stdin,
+        #default=sys.stdin,
+        default=None,
         action='store',
         nargs='*',  # flexible number of values - incl. None / see parser.error
         help="return http status codes for one or more websites")
@@ -153,7 +154,8 @@ def get_arguments():
         dest='code',
         help='only print status code')
     options = parser.parse_args()
-    if not options.site:
+    # print(f'Site: {options.site}')  # DEBUG: Print arguments
+    if len(options.site) == 0:
         parser.error(
             "[-] Please specify a website or a file with sites to check,"
             "use --help for more info.")
