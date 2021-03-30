@@ -126,6 +126,8 @@ def get_arguments():
         #default=sys.stdin,
         default=None,
         action='store',
+        #nargs='+',  # flexible number of values + error message will be generated
+        # if there wasn’t at least one command-line argument present
         nargs='*',  # flexible number of values - incl. None / see parser.error
         help="return http status codes for one or more websites")
     # parser.add_argument(
