@@ -1,16 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Simple command line program to check website status.
 
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
-Release date: 28. Januar 2019
-Version: 1.0
+Release date: 15. Mai 2020
+Version: 1.1.0
 
 """
 
 from __future__ import with_statement
-import sys
 from datetime import datetime
 from urllib.parse import urlparse
 # from requests.exceptions import HTTPError
@@ -18,10 +17,11 @@ import argparse
 import json
 import re
 import textwrap
+import concurrent.futures
 import requests
 
 
-VERSION = "1.0"
+VERSION = "1.1.0"
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 STATUS_CODES_JSON = """{
@@ -117,25 +117,17 @@ def get_arguments():
            [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
          '''))
     parser.add_argument(
-        '--version',
-        action='version',
-        version=f'%(prog)s {VERSION}')
-    parser.add_argument(
         'site',
         type=url_validation,  # Input validation with url_validation()
-        #default=sys.stdin,
-        default=None,
         action='store',
-        #nargs='+',  # flexible number of values + error message will be generated
-        # if there wasn’t at least one command-line argument present
         nargs='*',  # flexible number of values - incl. None / see parser.error
         help="return http status codes for one or more websites")
-    # parser.add_argument(
-    #     '-t',
-    #     '--tld',
-    #     action='store_true', # flag only no args stores True / False value
-    #     dest='tld',
-    #     help='check if domain is in global list of TLDs')
+    parser.add_argument(
+        '-t',
+        '--tld',
+        action='store_true',  # flag only no args stores True / False value
+        dest='tld',
+        help='check if domain is in global list of TLDs')
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         '-q',
@@ -155,29 +147,40 @@ def get_arguments():
         action='store_true',  # flag only no args stores True / False value
         dest='code',
         help='only print status code')
+    group.add_argument(
+        '-f',
+        '--fast',
+        action='store_true',  # flag only no args stores True / False value
+        dest='fast',
+        help='fast check wtih threading')
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {VERSION}')
     options = parser.parse_args()
-    # print(f'Site: {options.site}')  # DEBUG: Print arguments
-    if len(options.site) == 0:
+    if not options.site:
         parser.error(
             "[-] Please specify a website or a file with sites to check,"
             "use --help for more info.")
+    # print(f'DEBUG: {vars(options)}')
 
     return options
 
 
 def url_validation(site_url):
-    """Validate website from user"""
+    """Validate website from user."""
     # TODO: catch empty lines from @file
     # Find a more concise yet libral version of regex domain see
     # https://bit.ly/2FZLvHR
     #
     # conversion of 'no' url to url
-    site_url = site_url if site_url.startswith('http') else f'http://{site_url}'
+    site_url = site_url if site_url.startswith(
+        'http') else f'http://{site_url}'
     # check url with regex
-
     regex = re.compile(
         r'^(?:http|ftp)s?://'  # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain
+        #  domain
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
         r'localhost|'  # localhost...
         r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
         r'(?::\d+)?'  # optional port
@@ -191,7 +194,7 @@ def url_validation(site_url):
 
 # TODO: Fix function call and exceptions handling
 def tld_check(url):
-    """Check url for valid TLD against tld file"""
+    """Check url for valid TLD against tld file."""
     # load tlds, ignore comments and empty lines:
     # https://github.com/barseghyanartur/tld/blob/master/src/tld/res/effective_tld_names.dat.txt
     with open("effective_tld_names.dat.txt") as tld_file:
@@ -222,14 +225,13 @@ def tld_check(url):
 
 
 def check_site(site):
-    """Check webiste status code"""
-
+    """Check webiste status code."""
     # Include headers in request to avoid false 406 positives
-    custom_header = {'User-Agent': 'httpcheck Agent 1.0'}
+    custom_header = {'User-Agent': f'httpcheck Agent {VERSION}'}
 
     try:
         # Returns a response object
-        response = requests.get(site, headers=custom_header, timeout=3)
+        response = requests.get(site, headers=custom_header, timeout=5)
         return response.status_code
 
     except requests.exceptions.Timeout:
@@ -242,7 +244,7 @@ def check_site(site):
 # consider the most intuitive way to deliver different result(s)
 # how to format multiline output in columns in python 3?
 def print_format(status, url, quiet, verbose, code):
-    """Format & print results"""
+    """Format & print results."""
     status_codes = json.loads(STATUS_CODES_JSON)  # get staus codes from above
     # Get domain name with urlparse
     domain_parser = urlparse(url)
@@ -250,7 +252,7 @@ def print_format(status, url, quiet, verbose, code):
 
     if verbose and status in ('[timeout]', '[connection error]'):
         print(f'[-] {domain} -->  {status} Error')
-    elif verbose and status not in ('[timeout]', '[connection error]'):
+    elif verbose:
         if 100 <= status < 200:
             print(f'[+] {domain} --> Info: {status} '
                   f'{status_codes.get(str(status))}')
@@ -271,28 +273,41 @@ def print_format(status, url, quiet, verbose, code):
     elif code:
         print(f'{status}')
     elif quiet:
-        if status in ('[timeout]', '[connection error]'):
-            print(f'{domain} {status}')
-        elif status >= 400:
+        if status in ('[timeout]', '[connection error]') or status >= 400:
             print(f'{domain} {status}')
     else:
         print(f'{domain} {status}')
 
 
 def main():
-    """Check websites central"""
+    """Check websites central."""
     options = get_arguments()  # Get arguments
-    # print(vars(options)) # DEBUG: Print arguments
+    # print(f'DEBUG: {vars(options)}')  # DEBUG: Print arguments
+    if options.tld:
+        for site in options.site:
+            tld_check(site)
+
     if options.verbose:
         now = datetime.now()
         date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
         print(f'\thttpcheck {date_stamp}:')
-    for site in options.site:
-        # if options.tld:
-        #     tld_check(site)
-        status = check_site(site)  # Check & get HTTP Status code
-        print_format(status, site, options.quiet,
-                     options.verbose, options.code)
+    if not options.fast:
+        for site in options.site:
+            # if options.tld:
+            #     tld_check(site)
+            status = check_site(site)  # Check & get HTTP Status code
+            print_format(status, site, options.quiet,
+                         options.verbose, options.code)
+    # TODO:
+    # Fix Concurrency feature executor to show site with result
+    # Problem Concurrency does not deliver results sequentially
+    # Ref.: https://rednafi.github.io/digressions/python/2020/04/21/python-concurrent-futures.html
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            results = executor.map(check_site, options.site)
+        for result in results:
+            print(f'{result}')  # Print exhausts items in map ie. next item
+        # print(list(results))
 
 
 if __name__ == '__main__':
