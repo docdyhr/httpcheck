@@ -28,7 +28,7 @@
 ### additional information:
 
   enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'  
-  read sites from a file: 'httpcheck @domains.txt'. 
+  read sites from a file: 'httpcheck @domains.txt'.
 
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
@@ -74,7 +74,7 @@ python3 httpcheck.py https://duckduckgo.com
 
 returns ex. 'duckduckgo.com 200'
 
-#### python from venv
+### python from venv
 
 ```shell
 python httpcheck.py -v https://api.github.com/invalid
@@ -82,7 +82,8 @@ python httpcheck.py -v https://api.github.com/invalid
 
 returns verbose output ex. '[-] api.github.com --> Client errors: 404 Not Found'
 
-#### installed as binary 
+### installed as binary
+
 ```shell
 
 httpcheck -q @domains.txt
