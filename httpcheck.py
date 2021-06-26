@@ -162,7 +162,7 @@ def get_arguments():
         parser.error(
             "[-] Please specify a website or a file with sites to check,"
             "use --help for more info.")
-    # print(f'DEBUG: {vars(options)}')
+    # print(f'DEBUG: {vars(options) = }')
 
     return options
 
