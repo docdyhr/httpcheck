@@ -182,5 +182,7 @@ pip-selfcheck.json
 
 # End of https://www.gitignore.io/api/venv,macos,python,sublimetext
 
+# direnv
+.envrc
 # exclude private files
 private*
