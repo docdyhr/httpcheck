@@ -3,11 +3,11 @@
 # Check Websites HTTP Status Codes with httpcheck
 
 * Name: httpcheck
-* Version: 1.1.0
+* Version: 1.2.0
 * Programming language: Python 3
 * Author: Thomas J. Dyhr
 * Purpose: CLI tool to Check Website HTTP Status
-* Release date: 15. Mai 2021
+* Release date: 19. Marts 2024
 
 ## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--version] [site ...]
 

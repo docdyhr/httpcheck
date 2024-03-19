@@ -4,8 +4,8 @@
 
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
-Release date: 15. Mai 2020
-Version: 1.1.0
+Release date: 19. Marts 2024
+Version: 1.2.0
 
 """
 
@@ -21,7 +21,7 @@ import concurrent.futures
 import requests
 
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 STATUS_CODES_JSON = """{
@@ -211,7 +211,7 @@ def tld_check(url):
 
         candidate = ".".join(last_i_elements)  # abcde.co.uk, co.uk, uk
         wildcard_candidate = ".".join(["*"] + last_i_elements[1:])  # *.co.uk
-        exception_candidate = "!" + candidate
+        exception_candidate = f"!{candidate}"
 
         # match tlds:
         if exception_candidate in tlds:
@@ -304,10 +304,9 @@ def main():
     # Ref.: https://rednafi.github.io/digressions/python/2020/04/21/python-concurrent-futures.html
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            results = executor.map(check_site, options.site)
-        for result in results:
-            print(f'{result}')  # Print exhausts items in map ie. next item
-        # print(list(results))
+            results = executor.map(lambda site: (site, check_site(site)), options.site)
+        for site, result in results:
+            print(f'{site}: {result}')  # Print site with result
 
 
 if __name__ == '__main__':
