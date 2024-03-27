@@ -205,3 +205,4 @@ private*
 tempCodeRunnerFile.py
 # local envrc folder
 .envrc
+.vscode

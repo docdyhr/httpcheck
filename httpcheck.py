@@ -192,37 +192,39 @@ def url_validation(site_url):
     raise argparse.ArgumentTypeError(msg)
 
 
-# TODO: Fix function call and exceptions handling
-def tld_check(url):
+class InvalidTLDException(Exception):
+    """
+    Exception raised for invalid top-level domain (TLD).
+    """
+    pass
+
+def load_tlds(file_path):
+    """Load TLDs from a file and return as a list."""
+    tlds = []
+    with open(file_path, encoding="utf-8") as tld_file:
+        for line in tld_file:
+            line = line.strip()
+            if line and not line.startswith("//"):
+                tlds.append(line)
+    return tlds
+
+def tld_check(url, tld_file_path):
     """Check url for valid TLD against tld file."""
-    # load tlds, ignore comments and empty lines:
-    # https://github.com/barseghyanartur/tld/blob/master/src/tld/res/effective_tld_names.dat.txt
-    with open("effective_tld_names.dat.txt") as tld_file:
-        tlds = [line.strip() for line in tld_file if line[0] not in "/\n"]
+    tlds = load_tlds(tld_file_path)
 
-        url_elements = urlparse(url)[1].split('.')
-    # url_elements = ["abcde","co","uk"]
-
+    url_elements = urlparse(url).netloc.split('.')
     for i in range(-len(url_elements), 0):
         last_i_elements = url_elements[i:]
-        #    i=-3: ["abcde","co","uk"]
-        #    i=-2: ["co","uk"]
-        #    i=-1: ["uk"] etc
-
-        candidate = ".".join(last_i_elements)  # abcde.co.uk, co.uk, uk
-        wildcard_candidate = ".".join(["*"] + last_i_elements[1:])  # *.co.uk
+        candidate = ".".join(last_i_elements)
+        wildcard_candidate = ".".join(["*"] + last_i_elements[1:])
         exception_candidate = f"!{candidate}"
 
-        # match tlds:
         if exception_candidate in tlds:
             return ".".join(url_elements[i:])
-        if (candidate in tlds or wildcard_candidate in tlds):
+        if candidate in tlds or wildcard_candidate in tlds:
             return ".".join(url_elements[i - 1:])
-            # returns "abcde.co.uk"
 
-    msg = f"[-] Domain not in global list of TLDs: '{url}'"
-    raise argparse.ArgumentTypeError(msg)
-
+    raise InvalidTLDException(f"[-] Domain not in global list of TLDs: '{url}'")
 
 def check_site(site):
     """Check webiste status code."""
@@ -298,10 +300,6 @@ def main():
             status = check_site(site)  # Check & get HTTP Status code
             print_format(status, site, options.quiet,
                          options.verbose, options.code)
-    # TODO:
-    # Fix Concurrency feature executor to show site with result
-    # Problem Concurrency does not deliver results sequentially
-    # Ref.: https://rednafi.github.io/digressions/python/2020/04/21/python-concurrent-futures.html
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             results = executor.map(lambda site: (site, check_site(site)), options.site)
