@@ -19,6 +19,7 @@ import re
 import textwrap
 import concurrent.futures
 import requests
+import validators
 
 
 VERSION = "1.2.0"
@@ -208,23 +209,13 @@ def load_tlds(file_path):
                 tlds.append(line)
     return tlds
 
-def tld_check(url, tld_file_path):
-    """Check url for valid TLD against tld file."""
-    tlds = load_tlds(tld_file_path)
 
-    url_elements = urlparse(url).netloc.split('.')
-    for i in range(-len(url_elements), 0):
-        last_i_elements = url_elements[i:]
-        candidate = ".".join(last_i_elements)
-        wildcard_candidate = ".".join(["*"] + last_i_elements[1:])
-        exception_candidate = f"!{candidate}"
-
-        if exception_candidate in tlds:
-            return ".".join(url_elements[i:])
-        if candidate in tlds or wildcard_candidate in tlds:
-            return ".".join(url_elements[i - 1:])
-
-    raise InvalidTLDException(f"[-] Domain not in global list of TLDs: '{url}'")
+def tld_check(url):
+    """Check url for valid TLD."""
+    validation_result = validators.url(url)
+    if validation_result is not True:
+        raise InvalidTLDException(f"[-] Domain not in global list of TLDs: '{url}'")
+    return url
 
 def check_site(site):
     """Check webiste status code."""
