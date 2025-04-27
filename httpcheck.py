@@ -5,23 +5,32 @@
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
 Release date: 19. Marts 2024
-Version: 1.2.0
+Version: 1.2.1
 
 """
 
 from __future__ import with_statement
-from datetime import datetime
-from urllib.parse import urlparse
-# from requests.exceptions import HTTPError
+
+import os
 import argparse
-import json
-import re
-import textwrap
 import concurrent.futures
+import json
+import platform
+import re
+import subprocess
+import sys
+import textwrap
+from datetime import datetime
+from typing import List, NamedTuple
+from urllib.parse import urlparse
+
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import HTTPError, RequestException, Timeout
+from tabulate import tabulate
+from tqdm import tqdm
 
-
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 STATUS_CODES_JSON = """{
@@ -90,6 +99,9 @@ STATUS_CODES_JSON = """{
     "599": "Network Connect Timeout Error"
 }"""
 
+# Parse STATUS_CODES_JSON once at module level
+STATUS_CODES = json.loads(STATUS_CODES_JSON)
+
 # https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 # INFO = 'https://bit.ly/2FMMxXC'
 
@@ -104,30 +116,34 @@ STATUS_CODES_JSON = """{
 def get_arguments():
     """Handle webiste arguments."""
     parser = argparse.ArgumentParser(
-        # epilog=f'List of HTTP status codes: {INFO}',
-        fromfile_prefix_chars='@',  # read arguments from file ex. @domains.txt
-        # argument_default=argparse.SUPPRESS,
-        # description='%(prog)s @filename to read websites from a file',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent('''\
-         additional information:
-           enter sites in url or 'no' url form: '%(prog)s duckduckgo.com'
-           read sites from a file: '%(prog)s @domains.txt'
-
-           [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-         '''))
+        description=textwrap.dedent(__doc__))
     parser.add_argument(
         'site',
-        type=url_validation,  # Input validation with url_validation()
-        action='store',
-        nargs='*',  # flexible number of values - incl. None / see parser.error
-        help="return http status codes for one or more websites")
+        nargs='*',
+        type=str,  # Changed from url_validation to str to handle validation later
+        help='return http status codes for one or more websites')
     parser.add_argument(
         '-t',
         '--tld',
-        action='store_true',  # flag only no args stores True / False value
+        action='store_true',
         dest='tld',
         help='check if domain is in global list of TLDs')
+    parser.add_argument(
+        '--timeout',
+        type=float,
+        default=5.0,
+        help='timeout in seconds for each request')
+    parser.add_argument(
+        '--retries',
+        type=int,
+        default=2,
+        help='number of retries for failed requests')
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=10,
+        help='number of concurrent workers for fast mode')
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         '-q',
@@ -157,13 +173,39 @@ def get_arguments():
         '--version',
         action='version',
         version=f'%(prog)s {VERSION}')
+    
     options = parser.parse_args()
-    if not options.site:
-        parser.error(
-            "[-] Please specify a website or a file with sites to check,"
-            "use --help for more info.")
-    # print(f'DEBUG: {vars(options) = }')
-
+    
+    # Handle stdin if no sites provided
+    if not options.site and not sys.stdin.isatty():
+        stdin_sites = []
+        for line in sys.stdin:
+            line = line.strip()
+            if line:
+                try:
+                    validated_url = url_validation(line)
+                    stdin_sites.append(validated_url)
+                except argparse.ArgumentTypeError as e:
+                    print(str(e))
+        if stdin_sites:
+            options.site = stdin_sites
+        else:
+            parser.error("[-] No valid URLs provided via stdin")
+    elif not options.site:
+        parser.error("[-] Please specify a website or pipe URLs to check, use --help for more info.")
+    else:
+        # Validate command-line arguments
+        validated_sites = []
+        for site in options.site:
+            try:
+                validated_url = url_validation(site)
+                validated_sites.append(validated_url)
+            except argparse.ArgumentTypeError as e:
+                print(str(e))
+        options.site = validated_sites
+        if not options.site:
+            parser.error("[-] No valid URLs provided")
+    
     return options
 
 
@@ -193,10 +235,7 @@ def url_validation(site_url):
 
 
 class InvalidTLDException(Exception):
-    """
-    Exception raised for invalid top-level domain (TLD).
-    """
-    pass
+    """Exception raised for invalid top-level domain (TLD)."""
 
 def load_tlds(file_path):
     """Load TLDs from a file and return as a list."""
@@ -226,85 +265,203 @@ def tld_check(url, tld_file_path):
 
     raise InvalidTLDException(f"[-] Domain not in global list of TLDs: '{url}'")
 
-def check_site(site):
-    """Check webiste status code."""
-    # Include headers in request to avoid false 406 positives
+class SiteStatus(NamedTuple):
+    """Represents the status of a checked website"""
+    domain: str
+    status: str
+    message: str
+    redirect_chain: List[tuple] = []
+    response_time: float = 0.0
+
+def check_site(site, timeout=5.0, retries=2):
+    """Check website status code with redirect tracking."""
     custom_header = {'User-Agent': f'httpcheck Agent {VERSION}'}
+    redirect_chain = []
+    start_time = datetime.now()
+    
+    for attempt in range(retries + 1):
+        try:
+            response = requests.get(site, headers=custom_header, timeout=timeout, allow_redirects=True)
+            end_time = datetime.now()
+            response_time = (end_time - start_time).total_seconds()
+            
+            # Track redirects
+            if response.history:
+                for r in response.history:
+                    redirect_chain.append((r.url, r.status_code))
+                redirect_chain.append((response.url, response.status_code))
+            
+            return SiteStatus(
+                domain=urlparse(site).hostname,
+                status=str(response.status_code),
+                message=STATUS_CODES.get(str(response.status_code), "Unknown"),
+                redirect_chain=redirect_chain,
+                response_time=response_time
+            )
+        except Timeout:
+            if attempt == retries:
+                return SiteStatus(urlparse(site).hostname, '[timeout]', 'Request timed out')
+        except RequestsConnectionError:
+            if attempt == retries:
+                return SiteStatus(urlparse(site).hostname, '[connection error]', 'Connection failed')
+        except HTTPError as e:
+            return SiteStatus(urlparse(site).hostname, str(e.response.status_code), str(e))
+        except RequestException:
+            if attempt == retries:
+                return SiteStatus(urlparse(site).hostname, '[request error]', 'Request failed')
 
-    try:
-        # Returns a response object
-        response = requests.get(site, headers=custom_header, timeout=5)
-        return response.status_code
-
-    except requests.exceptions.Timeout:
-        return '[timeout]'
-    except requests.exceptions.ConnectionError:
-        return '[connection error]'
-
-
-# TODO:
-# consider the most intuitive way to deliver different result(s)
-# how to format multiline output in columns in python 3?
-def print_format(status, url, quiet, verbose, code):
-    """Format & print results."""
-    status_codes = json.loads(STATUS_CODES_JSON)  # get staus codes from above
-    # Get domain name with urlparse
-    domain_parser = urlparse(url)
-    domain = domain_parser.hostname
-
-    if verbose and status in ('[timeout]', '[connection error]'):
-        print(f'[-] {domain} -->  {status} Error')
-    elif verbose:
-        if 100 <= status < 200:
-            print(f'[+] {domain} --> Info: {status} '
-                  f'{status_codes.get(str(status))}')
-        elif 200 <= status < 300:
-            print(f'[+] {domain} --> Succes: {status} '
-                  f'{status_codes.get(str(status))}')
-        elif 300 <= status < 400:
-            print(f'[-] {domain} --> Redirection: {status} '
-                  f'{status_codes.get(str(status))}')
-        elif 400 <= status < 500:
-            print(f'[-] {domain} --> Client errors: {status} '
-                  f'{status_codes.get(str(status))}')
-        elif 500 <= status < 600:
-            print(f'[-] {domain} --> Server errors: {status} '
-                  f'{status_codes.get(str(status))}')
-        else:
-            print(f"[-] unknown error for {domain}")
-    elif code:
-        print(f'{status}')
+def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
+    """Format & print results in columns."""
+    if code:
+        print(result.status)
+        return
+        
+    if verbose:
+        headers = ["Domain", "Status", "Response Time", "Message"]
+        table_data = [[
+            result.domain,
+            result.status,
+            f"{result.response_time:.2f}s",
+            STATUS_CODES.get(str(result.status), "Unknown")
+        ]]
+        
+        print(tabulate(table_data, headers=headers, tablefmt="grid"))
+        
+        if result.redirect_chain:
+            print("\nRedirect Chain:")
+            redirect_data = [[i+1, url, code] for i, (url, code) in enumerate(result.redirect_chain)]
+            print(tabulate(redirect_data, headers=["Step", "URL", "Status"], tablefmt="grid"))
+            print()
     elif quiet:
-        if status in ('[timeout]', '[connection error]') or status >= 400:
-            print(f'{domain} {status}')
+        if result.status in ('[timeout]', '[connection error]') or int(result.status) >= 400:
+            print(f'{result.domain} {result.status}')
     else:
-        print(f'{domain} {status}')
+        print(tabulate([[result.domain, result.status]], tablefmt="simple"))
 
+def notify(title, message, failed_sites=None):
+    """Send system notification using terminal-notifier."""
+    if platform.system() == 'Darwin':  # macOS only
+        try:
+            notifier_paths = [
+                '/opt/homebrew/bin/terminal-notifier',  # Apple Silicon
+                '/usr/local/bin/terminal-notifier'      # Intel Mac
+            ]
+            
+            notifier_path = next((path for path in notifier_paths if os.path.exists(path)), None)
+            
+            if not notifier_path:
+                print("\nWarning: terminal-notifier not found. Please install it with: brew install terminal-notifier")
+                return
+
+            notification_message = message
+            if failed_sites and len(failed_sites) < 10:
+                failed_list = "\n".join(f"• {site}" for site in failed_sites)
+                notification_message = f"{message}\n\nFailed sites:\n{failed_list}"
+
+            cmd = [
+                notifier_path,
+                '-title', title,
+                '-message', notification_message,
+                '-group', 'httpcheck'
+            ]
+
+            subprocess.run(cmd, check=False)
+
+        except subprocess.SubprocessError as e:
+            print(f"\nWarning: Could not send notification: {str(e)}")
+            print("Please ensure terminal-notifier is installed: brew install terminal-notifier")
 
 def main():
     """Check websites central."""
-    options = get_arguments()  # Get arguments
-    # print(f'DEBUG: {vars(options)}')  # DEBUG: Print arguments
-    if options.tld:
-        for site in options.site:
-            tld_check(site)
-
+    options = get_arguments()
+    start_time = datetime.now()
+    total_sites = len(options.site)
+    successful = 0
+    failures = 0
+    failed_sites = []
+    
     if options.verbose:
         now = datetime.now()
         date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
         print(f'\thttpcheck {date_stamp}:')
-    if not options.fast:
+
+    # Process sites from stdin if no arguments given
+    if not options.site:
+        if not sys.stdin.isatty():
+            options.site = [line.strip() for line in sys.stdin if line.strip()]
+        else:
+            parser = argparse.ArgumentParser()  # Create parser instance here
+            parser.error("[-] Please specify a website or a file with sites to check, use --help for more info.")
+
+    if options.tld:
+        tld_file = "effective_tld_names.dat.txt"  # Default TLD file
         for site in options.site:
-            # if options.tld:
-            #     tld_check(site)
-            status = check_site(site)  # Check & get HTTP Status code
-            print_format(status, site, options.quiet,
-                         options.verbose, options.code)
+            try:
+                tld_check(site, tld_file)
+            except InvalidTLDException as e:
+                print(str(e))
+                failures += 1
+                failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
+                continue
+
+    if not options.fast:
+        for site in tqdm(options.site, desc="Checking sites", disable=options.quiet):
+            status = check_site(site, options.timeout, options.retries)
+            print_format(status, options.quiet, options.verbose, options.code)
+            if isinstance(status, SiteStatus):
+                try:
+                    status_code = int(status.status)
+                    if 200 <= status_code < 400:
+                        successful += 1
+                    else:
+                        failures += 1
+                        failed_sites.append(f"{status.domain} ({status.status})")
+                except ValueError:
+                    failures += 1
+                    failed_sites.append(f"{status.domain} ({status.status})")
+            else:
+                failures += 1
+                failed_sites.append(f"{urlparse(site).hostname} (Error)")
     else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            results = executor.map(lambda site: (site, check_site(site)), options.site)
-        for site, result in results:
-            print(f'{site}: {result}')  # Print site with result
+        with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
+            future_to_site = {executor.submit(check_site, site, options.timeout, options.retries): site 
+                            for site in options.site}
+            
+            with tqdm(total=len(future_to_site), desc="Checking sites", disable=options.quiet) as pbar:
+                for future in concurrent.futures.as_completed(future_to_site):
+                    site = future_to_site[future]
+                    try:
+                        status = future.result()
+                        print_format(status, options.quiet, options.verbose, options.code)
+                        if isinstance(status, SiteStatus):
+                            try:
+                                status_code = int(status.status)
+                                if 200 <= status_code < 400:
+                                    successful += 1
+                                else:
+                                    failures += 1
+                                    failed_sites.append(f"{status.domain} ({status.status})")
+                            except ValueError:
+                                failures += 1
+                                failed_sites.append(f"{status.domain} ({status.status})")
+                        else:
+                            failures += 1
+                            failed_sites.append(f"{urlparse(site).hostname} (Error)")
+                    except (RequestException, RuntimeError) as e:
+                        print(f"[-] {site}: {str(e)}")
+                        failures += 1
+                        failed_sites.append(f"{urlparse(site).hostname} (Error)")
+                    pbar.update(1)
+
+    # Send completion notification
+    duration = datetime.now() - start_time
+    summary = f"Checked {total_sites} sites in {duration.seconds}s\n{successful} successful, {failures} failed"
+    print(f"\n{summary}")
+    
+    if failures > 0:
+        notify("HTTP Check - Failed", f"{failures} of {total_sites} sites failed", failed_sites)
+    else:
+        notify("HTTP Check - Success", f"All {total_sites} sites checked successfully")
 
 
 if __name__ == '__main__':

@@ -3,13 +3,13 @@
 # Check Websites HTTP Status Codes with httpcheck
 
 * Name: httpcheck
-* Version: 1.2.0
+* Version: 1.3.0
 * Programming language: Python 3
 * Author: Thomas J. Dyhr
 * Purpose: CLI tool to Check Website HTTP Status
-* Release date: 19. Marts 2024
+* Release date: 27 April 2025
 
-## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--version] [site ...]
+## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--version] [site ...]
 
 ### positional arguments:
 
@@ -23,6 +23,12 @@
   -v, --verbose  increase output verbosity
   -c, --code     only print status code
   -f, --fast     fast check wtih threading
+  --timeout TIMEOUT
+                 set the timeout for each request
+  --retries RETRIES
+                 set the number of retries for each request
+  --workers WORKERS
+                 set the number of worker threads
   --version      show program's version number and exit
 
 ### additional information:
@@ -49,6 +55,11 @@ cd httpcheck/
 python3 -m pip install -r requirements.txt --user
 ```
 
+On macOS, install terminal-notifier for notifications:
+```shell
+brew install terminal-notifier
+```
+
 ### alternative install
 
 set up a virtual environment with venv.
@@ -65,6 +76,16 @@ or
 mv httpcheck.py ~/bin/httpcheck # any other bin folder
 chmod + ~/bin/httpcheck
 ```
+
+## features
+
+* Check HTTP status codes for one or more websites
+* Support for macOS notifications on failures
+* Redirect tracking and reporting
+* Threading support for faster checks
+* Progress bar for multiple site checks
+* Configurable timeouts and retries
+* Pipe and file input support
 
 ## usage examples
 
@@ -85,17 +106,23 @@ returns verbose output ex. '[-] api.github.com --> Client errors: 404 Not Found'
 ### installed as binary
 
 ```shell
-
 httpcheck -q @domains.txt
 ```
 
-only returs http status code errors ex. 'api.github.com 404'
+only returns http status code errors ex. 'api.github.com 404'
 
 ```shell
 httpcheck -c 1.1.1.1
 ```
 
 status code only ex. '200'
+
+### notifications
+
+On macOS, the tool will show notifications when sites fail checks. For sites with failures:
+- Shows failure count
+- Lists failed sites (when less than 10)
+- Groups notifications to avoid duplicates
 
 ## history
 
