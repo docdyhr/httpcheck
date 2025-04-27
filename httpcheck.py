@@ -182,7 +182,10 @@ def get_arguments():
         else:
             parser.error("[-] No valid URLs provided via stdin")
     elif not options.site:
-        parser.error("[-] Please specify a website or pipe URLs to check, use --help for more info.")
+        parser.error(
+            "[-] Please specify a website or pipe URLs to check, "
+            "use --help for more info."
+        )
     else:
         # Validate command-line arguments
         validated_sites = []
@@ -269,7 +272,12 @@ def check_site(site, timeout=5.0, retries=2):
 
     for attempt in range(retries + 1):
         try:
-            response = requests.get(site, headers=custom_header, timeout=timeout, allow_redirects=True)
+            response = requests.get(
+                site,
+                headers=custom_header,
+                timeout=timeout,
+                allow_redirects=True
+            )
             end_time = datetime.now()
             response_time = (end_time - start_time).total_seconds()
 
@@ -288,15 +296,38 @@ def check_site(site, timeout=5.0, retries=2):
             )
         except Timeout:
             if attempt == retries:
-                return SiteStatus(urlparse(site).hostname, '[timeout]', 'Request timed out')
+                return SiteStatus(
+                    urlparse(site).hostname,
+                    '[timeout]',
+                    'Request timed out'
+                )
         except RequestsConnectionError:
             if attempt == retries:
-                return SiteStatus(urlparse(site).hostname, '[connection error]', 'Connection failed')
+                return SiteStatus(
+                    urlparse(site).hostname,
+                    '[connection error]',
+                    'Connection failed'
+                )
         except HTTPError as e:
-            return SiteStatus(urlparse(site).hostname, str(e.response.status_code), str(e))
+            return SiteStatus(
+                urlparse(site).hostname,
+                str(e.response.status_code),
+                str(e)
+            )
         except RequestException:
             if attempt == retries:
-                return SiteStatus(urlparse(site).hostname, '[request error]', 'Request failed')
+                return SiteStatus(
+                    urlparse(site).hostname,
+                    '[request error]',
+                    'Request failed'
+                )
+
+    # Default return in case all retries fail
+    return SiteStatus(
+        urlparse(site).hostname,
+        '[unknown error]',
+        'All retries failed'
+    )
 
 
 def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
@@ -362,6 +393,100 @@ def notify(title, message, failed_sites=None):
             print("Please ensure terminal-notifier is installed: brew install terminal-notifier")
 
 
+def process_site_status(site_status, site_url, successful, failures, failed_sites):
+    """Process a site's status and update counters."""
+    if not isinstance(site_status, SiteStatus):
+        failures += 1
+        failed_sites.append(f"{urlparse(site_url).hostname} (Error)")
+        return successful, failures
+
+    try:
+        status_code = int(site_status.status)
+        if 200 <= status_code < 400:
+            successful += 1
+        else:
+            failures += 1
+            failed_sites.append(f"{site_status.domain} ({site_status.status})")
+    except ValueError:
+        failures += 1
+        failed_sites.append(f"{site_status.domain} ({site_status.status})")
+    return successful, failures
+
+def check_sites_serial(options, successful, failures, failed_sites):
+    """Check sites one at a time."""
+    for site in tqdm(
+        options.site,
+        desc="Checking sites",
+        disable=options.quiet
+    ):
+        status = check_site(site, options.timeout, options.retries)
+        print_format(status, options.quiet, options.verbose, options.code)
+        successful, failures = process_site_status(
+            status, site, successful, failures, failed_sites
+        )
+    return successful, failures
+
+def check_sites_parallel(options, successful, failures, failed_sites):
+    """Check sites in parallel using ThreadPoolExecutor."""
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=options.workers
+    ) as executor:
+        future_to_site = {
+            executor.submit(
+                check_site,
+                site,
+                options.timeout,
+                options.retries
+            ): site for site in options.site
+        }
+
+        progress_bar = tqdm(
+            total=len(future_to_site),
+            desc="Checking sites",
+            disable=options.quiet
+        )
+
+        for future in concurrent.futures.as_completed(future_to_site):
+            site = future_to_site[future]
+            try:
+                status = future.result()
+                print_format(
+                    status,
+                    options.quiet,
+                    options.verbose,
+                    options.code
+                )
+                successful, failures = process_site_status(
+                    status,
+                    site,
+                    successful,
+                    failures,
+                    failed_sites
+                )
+            except (RequestException, RuntimeError) as e:
+                print(f"[-] {site}: {str(e)}")
+                failures += 1
+                failed_sites.append(f"{urlparse(site).hostname} (Error)")
+            progress_bar.update(1)
+
+        progress_bar.close()
+    return successful, failures
+
+def check_tlds(options, failures, failed_sites):
+    """Check TLDs if requested."""
+    if not options.tld:
+        return failures
+    
+    tld_file = "effective_tld_names.dat.txt"
+    for site in options.site:
+        try:
+            tld_check(site, tld_file)
+        except InvalidTLDException as e:
+            print(str(e))
+            failures += 1
+            failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
+    return failures
+
 def main():
     """Check websites central."""
     options = get_arguments()
@@ -381,78 +506,42 @@ def main():
         if not sys.stdin.isatty():
             options.site = [line.strip() for line in sys.stdin if line.strip()]
         else:
-            parser = argparse.ArgumentParser()  # Create parser instance here
-            parser.error("[-] Please specify a website or a file with sites to check, use --help for more info.")
+            parser = argparse.ArgumentParser()
+            parser.error(
+                "[-] Please specify a website or a file with sites to check, "
+                "use --help for more info."
+            )
 
-    if options.tld:
-        tld_file = "effective_tld_names.dat.txt"  # Default TLD file
-        for site in options.site:
-            try:
-                tld_check(site, tld_file)
-            except InvalidTLDException as e:
-                print(str(e))
-                failures += 1
-                failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
-                continue
+    failures = check_tlds(options, failures, failed_sites)
 
     if not options.fast:
-        for site in tqdm(options.site, desc="Checking sites", disable=options.quiet):
-            status = check_site(site, options.timeout, options.retries)
-            print_format(status, options.quiet, options.verbose, options.code)
-            if isinstance(status, SiteStatus):
-                try:
-                    status_code = int(status.status)
-                    if 200 <= status_code < 400:
-                        successful += 1
-                    else:
-                        failures += 1
-                        failed_sites.append(f"{status.domain} ({status.status})")
-                except ValueError:
-                    failures += 1
-                    failed_sites.append(f"{status.domain} ({status.status})")
-            else:
-                failures += 1
-                failed_sites.append(f"{urlparse(site).hostname} (Error)")
+        successful, failures = check_sites_serial(
+            options, successful, failures, failed_sites
+        )
     else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
-            future_to_site = {executor.submit(check_site, site, options.timeout, options.retries): site
-                              for site in options.site}
-
-            with tqdm(total=len(future_to_site), desc="Checking sites", disable=options.quiet) as pbar:
-                for future in concurrent.futures.as_completed(future_to_site):
-                    site = future_to_site[future]
-                    try:
-                        status = future.result()
-                        print_format(status, options.quiet, options.verbose, options.code)
-                        if isinstance(status, SiteStatus):
-                            try:
-                                status_code = int(status.status)
-                                if 200 <= status_code < 400:
-                                    successful += 1
-                                else:
-                                    failures += 1
-                                    failed_sites.append(f"{status.domain} ({status.status})")
-                            except ValueError:
-                                failures += 1
-                                failed_sites.append(f"{status.domain} ({status.status})")
-                        else:
-                            failures += 1
-                            failed_sites.append(f"{urlparse(site).hostname} (Error)")
-                    except (RequestException, RuntimeError) as e:
-                        print(f"[-] {site}: {str(e)}")
-                        failures += 1
-                        failed_sites.append(f"{urlparse(site).hostname} (Error)")
-                    pbar.update(1)
+        successful, failures = check_sites_parallel(
+            options, successful, failures, failed_sites
+        )
 
     # Send completion notification
     duration = datetime.now() - start_time
-    summary = f"Checked {total_sites} sites in {duration.seconds}s\n{successful} successful, {failures} failed"
+    summary = (
+        f"Checked {total_sites} sites in {duration.seconds}s\n"
+        f"{successful} successful, {failures} failed"
+    )
     print(f"\n{summary}")
 
     if failures > 0:
-        notify("HTTP Check - Failed", f"{failures} of {total_sites} sites failed", failed_sites)
+        notify(
+            "HTTP Check - Failed",
+            f"{failures} of {total_sites} sites failed",
+            failed_sites
+        )
     else:
-        notify("HTTP Check - Success", f"All {total_sites} sites checked successfully")
+        notify(
+            "HTTP Check - Success",
+            f"All {total_sites} sites checked successfully"
+        )
 
 
 if __name__ == '__main__':
