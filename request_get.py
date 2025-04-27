@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Module for checking HTTP response status codes from provided URLs."""
 import argparse
 import sys
 

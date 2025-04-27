@@ -11,11 +11,11 @@
 
 ## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--version] [site ...]
 
-### positional arguments:
+### positional arguments
 
   site           return http status codes for one or more websites
 
-### optional arguments:
+### optional arguments
 
   -h, --help     show this help message and exit
   -t, --tld      check if domain is in global list of TLDs
@@ -31,7 +31,7 @@
                  set the number of worker threads
   --version      show program's version number and exit
 
-### additional information:
+### additional information
 
   enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'  
   read sites from a file: 'httpcheck @domains.txt'.
@@ -120,9 +120,10 @@ status code only ex. '200'
 ### notifications
 
 On macOS, the tool will show notifications when sites fail checks. For sites with failures:
-- Shows failure count
-- Lists failed sites (when less than 10)
-- Groups notifications to avoid duplicates
+
+* Shows failure count
+* Lists failed sites (when less than 10)
+* Groups notifications to avoid duplicates
 
 ## history
 

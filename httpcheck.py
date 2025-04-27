@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-
 """Simple command line program to check website status.
 
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
-Release date: 19. Marts 2024
-Version: 1.2.1
-
+Release date: 27 April 2025
+Version: 1.3.0
 """
 
 from __future__ import with_statement
@@ -105,14 +103,6 @@ STATUS_CODES = json.loads(STATUS_CODES_JSON)
 # https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 # INFO = 'https://bit.ly/2FMMxXC'
 
-
-# TODO:
-# option -r for checking only redirects with redirects site info
-# add support for piping into httpcheck, see argpase  - 'FileType objects'
-# stdin
-# add support for 'Customizing file parsing' to allow /remove empty lines with
-# withe space to occur
-#
 def get_arguments():
     """Handle webiste arguments."""
     parser = argparse.ArgumentParser(
@@ -173,9 +163,9 @@ def get_arguments():
         '--version',
         action='version',
         version=f'%(prog)s {VERSION}')
-    
+
     options = parser.parse_args()
-    
+
     # Handle stdin if no sites provided
     if not options.site and not sys.stdin.isatty():
         stdin_sites = []
@@ -205,19 +195,13 @@ def get_arguments():
         options.site = validated_sites
         if not options.site:
             parser.error("[-] No valid URLs provided")
-    
+
     return options
 
 
 def url_validation(site_url):
-    """Validate website from user."""
-    # TODO: catch empty lines from @file
-    # Find a more concise yet libral version of regex domain see
-    # https://bit.ly/2FZLvHR
-    #
-    # conversion of 'no' url to url
-    site_url = site_url if site_url.startswith(
-        'http') else f'http://{site_url}'
+    """Check if url is valid and return it."""
+    site_url = site_url if site_url.startswith('http') else f'http://{site_url}'
     # check url with regex
     regex = re.compile(
         r'^(?:http|ftp)s?://'  # http:// or https://
@@ -237,6 +221,7 @@ def url_validation(site_url):
 class InvalidTLDException(Exception):
     """Exception raised for invalid top-level domain (TLD)."""
 
+
 def load_tlds(file_path):
     """Load TLDs from a file and return as a list."""
     tlds = []
@@ -246,6 +231,7 @@ def load_tlds(file_path):
             if line and not line.startswith("//"):
                 tlds.append(line)
     return tlds
+
 
 def tld_check(url, tld_file_path):
     """Check url for valid TLD against tld file."""
@@ -265,6 +251,7 @@ def tld_check(url, tld_file_path):
 
     raise InvalidTLDException(f"[-] Domain not in global list of TLDs: '{url}'")
 
+
 class SiteStatus(NamedTuple):
     """Represents the status of a checked website"""
     domain: str
@@ -273,24 +260,25 @@ class SiteStatus(NamedTuple):
     redirect_chain: List[tuple] = []
     response_time: float = 0.0
 
+
 def check_site(site, timeout=5.0, retries=2):
     """Check website status code with redirect tracking."""
     custom_header = {'User-Agent': f'httpcheck Agent {VERSION}'}
     redirect_chain = []
     start_time = datetime.now()
-    
+
     for attempt in range(retries + 1):
         try:
             response = requests.get(site, headers=custom_header, timeout=timeout, allow_redirects=True)
             end_time = datetime.now()
             response_time = (end_time - start_time).total_seconds()
-            
+
             # Track redirects
             if response.history:
                 for r in response.history:
                     redirect_chain.append((r.url, r.status_code))
                 redirect_chain.append((response.url, response.status_code))
-            
+
             return SiteStatus(
                 domain=urlparse(site).hostname,
                 status=str(response.status_code),
@@ -310,12 +298,13 @@ def check_site(site, timeout=5.0, retries=2):
             if attempt == retries:
                 return SiteStatus(urlparse(site).hostname, '[request error]', 'Request failed')
 
+
 def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
     """Format & print results in columns."""
     if code:
         print(result.status)
         return
-        
+
     if verbose:
         headers = ["Domain", "Status", "Response Time", "Message"]
         table_data = [[
@@ -324,9 +313,9 @@ def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
             f"{result.response_time:.2f}s",
             STATUS_CODES.get(str(result.status), "Unknown")
         ]]
-        
+
         print(tabulate(table_data, headers=headers, tablefmt="grid"))
-        
+
         if result.redirect_chain:
             print("\nRedirect Chain:")
             redirect_data = [[i+1, url, code] for i, (url, code) in enumerate(result.redirect_chain)]
@@ -338,6 +327,7 @@ def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
     else:
         print(tabulate([[result.domain, result.status]], tablefmt="simple"))
 
+
 def notify(title, message, failed_sites=None):
     """Send system notification using terminal-notifier."""
     if platform.system() == 'Darwin':  # macOS only
@@ -346,9 +336,9 @@ def notify(title, message, failed_sites=None):
                 '/opt/homebrew/bin/terminal-notifier',  # Apple Silicon
                 '/usr/local/bin/terminal-notifier'      # Intel Mac
             ]
-            
+
             notifier_path = next((path for path in notifier_paths if os.path.exists(path)), None)
-            
+
             if not notifier_path:
                 print("\nWarning: terminal-notifier not found. Please install it with: brew install terminal-notifier")
                 return
@@ -371,6 +361,7 @@ def notify(title, message, failed_sites=None):
             print(f"\nWarning: Could not send notification: {str(e)}")
             print("Please ensure terminal-notifier is installed: brew install terminal-notifier")
 
+
 def main():
     """Check websites central."""
     options = get_arguments()
@@ -379,7 +370,7 @@ def main():
     successful = 0
     failures = 0
     failed_sites = []
-    
+
     if options.verbose:
         now = datetime.now()
         date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -424,9 +415,9 @@ def main():
                 failed_sites.append(f"{urlparse(site).hostname} (Error)")
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
-            future_to_site = {executor.submit(check_site, site, options.timeout, options.retries): site 
-                            for site in options.site}
-            
+            future_to_site = {executor.submit(check_site, site, options.timeout, options.retries): site
+                              for site in options.site}
+
             with tqdm(total=len(future_to_site), desc="Checking sites", disable=options.quiet) as pbar:
                 for future in concurrent.futures.as_completed(future_to_site):
                     site = future_to_site[future]
@@ -457,7 +448,7 @@ def main():
     duration = datetime.now() - start_time
     summary = f"Checked {total_sites} sites in {duration.seconds}s\n{successful} successful, {failures} failed"
     print(f"\n{summary}")
-    
+
     if failures > 0:
         notify("HTTP Check - Failed", f"{failures} of {total_sites} sites failed", failed_sites)
     else:
