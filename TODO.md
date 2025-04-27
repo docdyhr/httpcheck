@@ -1,14 +1,55 @@
 # Todo list for httpcheck
 
-* implement advanced redirects check as an option
-* validate @files for empty lines within argparse scope / strip domain files for blanklines and spaces before read
-* Check domains against [tlds](https://github.com/barseghyanartur/tld/blob/master/src/tld/res/effective_tld_names.dat.txt)
-* refactor to use 'from requests.exceptions import HTTPError' in requests err instead of custom check
-* implement advanced option for setting timeout length
-* option for set number of times to try if timeout errror
-* figure out the correct use of pipe with | ie. 'httpcheck -' for piping into httpcheck, see FileType and Nargs within [argparse](https://docs.python.org/3.8/library/argparse.html#nargs)
+## High Priority
+* Implement advanced redirects check as an option
+  - Add --follow-redirects flag
+  - Show full redirect chain details
+  - Add max redirects option
+  - Track redirect timing
+
+* Input file improvements
+  - Strip whitespace and empty lines from domain files
+  - Validate file contents before processing
+  - Add support for comments in domain files
+  - Handle malformed lines gracefully
+
+* TLD validation
+  - Implement proper TLD checking against standard list
+  - Add caching for TLD list
+  - Update TLD list automatically
+  - Add option to disable TLD checks
+
+## Medium Priority
+* Exception handling improvements
+  - Refactor to use proper HTTP exceptions
+  - Add more detailed error messages
+  - Implement better timeout handling
+  - Add connection error retry logic
+
+* Timeout and retry enhancements
+  - Add per-domain timeout settings
+  - Implement exponential backoff
+  - Add retry delay configuration
+  - Support different retry strategies
+
+* Standard input handling
+  - Improve pipe support (httpcheck -)
+  - Add proper FileType handling in argparse
+  - Support streaming input
+  - Handle interrupts gracefully
+
+## Future Enhancements
+* Add JSON output format option
+* Support for custom HTTP headers
+* HTTP/2 and HTTP/3 protocol support
+* Cookie handling options
+* Proxy support
+* Custom SSL certificate validation
+* Response body size limits
+* Response time statistics
+* Export results to various formats
 
 ## Completed
-* ~~implement a progress bar for larger number of site checks - ex.: [tqdm](https://github.com/tqdm/tqdm)~~ ✓
-* ~~notification of user integration with email, message, popup, notification, phone, see terminal-notifier or just use osascript "display notification" for osx~~ ✓
-* ~~implement threading propperly to show info~~ ✓
+* ~~Implement a progress bar for larger number of site checks~~ ✓
+* ~~Notification system for macOS using terminal-notifier~~ ✓
+* ~~Proper threading implementation with progress tracking~~ ✓
