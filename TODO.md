@@ -15,7 +15,7 @@
   * Handle malformed lines gracefully
 
 * TLD validation
-  * Implement proper TLD checking against standard list
+  * ~~Update TLD list with latest from publicsuffix.org~~ ✓
   * Add caching for TLD list
   * Update TLD list automatically
   * Add option to disable TLD checks

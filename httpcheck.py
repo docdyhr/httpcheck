@@ -477,7 +477,7 @@ def check_tlds(options, failures, failed_sites):
     if not options.tld:
         return failures
     
-    tld_file = "effective_tld_names.dat.txt"
+    tld_file = "effective_tld_names.dat"
     for site in options.site:
         try:
             tld_check(site, tld_file)
