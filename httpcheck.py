@@ -134,6 +134,26 @@ def get_arguments():
         type=int,
         default=10,
         help='number of concurrent workers for fast mode')
+    
+    # Add redirect options
+    parser.add_argument(
+        '--follow-redirects',
+        dest='follow_redirects',
+        choices=['always', 'never', 'http-only', 'https-only'],
+        default='always',
+        help='control redirect following: always, never, http-only, or https-only')
+    parser.add_argument(
+        '--max-redirects',
+        dest='max_redirects',
+        type=int,
+        default=30,
+        help='maximum number of redirects to follow (default: 30)')
+    parser.add_argument(
+        '--show-redirect-timing',
+        dest='show_redirect_timing',
+        action='store_true',
+        help='show detailed timing for each redirect in the chain')
+    
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         '-q',
@@ -270,37 +290,124 @@ class SiteStatus(NamedTuple):
     message: str
     redirect_chain: List[tuple] = []
     response_time: float = 0.0
+    redirect_timing: List[tuple] = []  # List of (url, status_code, response_time) tuples
 
 
-def check_site(site, timeout=5.0, retries=2):
+def check_site(site, timeout=5.0, retries=2, follow_redirects='always', max_redirects=30):
     """Check website status code with redirect tracking."""
     custom_header = {'User-Agent': f'httpcheck Agent {VERSION}'}
     redirect_chain = []
+    redirect_timing = []
     start_time = datetime.now()
+    
+    # Configure redirect behavior
+    allow_redirects = True
+    if follow_redirects == 'never':
+        allow_redirects = False
+    
+    # Configure session for finer control over redirects
+    session = requests.Session()
+    
+    # Set max redirects
+    session.max_redirects = max_redirects
+    
+    # Custom redirect logic for http-only or https-only options
+    original_get = session.get
+    
+    if follow_redirects in ('http-only', 'https-only'):
+        def modified_get(url, *args, **kwargs):
+            response = original_get(url, allow_redirects=False, *args, **kwargs)
+            
+            # Handle redirects manually based on protocol restriction
+            redirect_count = 0
+            while (
+                response.is_redirect and
+                redirect_count < max_redirects and
+                'location' in response.headers
+            ):
+                redirect_url = response.headers['location']
+                
+                # Check protocol for http-only or https-only
+                if (follow_redirects == 'http-only' and redirect_url.startswith('https://') or
+                    follow_redirects == 'https-only' and redirect_url.startswith('http://')):
+                    break  # Stop following redirects if protocol doesn't match preference
+                
+                # Record redirect timing
+                redirect_time = datetime.now()
+                redirect_chain.append((response.url, response.status_code))
+                
+                # Follow the redirect
+                response = original_get(redirect_url, allow_redirects=False, *args, **kwargs)
+                
+                # Calculate and store timing for this redirect
+                redirect_elapsed = (datetime.now() - redirect_time).total_seconds()
+                redirect_timing.append((
+                    redirect_url,
+                    response.status_code,
+                    redirect_elapsed
+                ))
+                
+                redirect_count += 1
+            
+            return response
+        
+        session.get = modified_get
 
     for attempt in range(retries + 1):
         try:
-            response = requests.get(
-                site,
-                headers=custom_header,
-                timeout=timeout,
-                allow_redirects=True
-            )
+            # Reset tracking for each attempt
+            redirect_chain = []
+            redirect_timing = []
+            start_time = datetime.now()
+            
+            # Simple case: all redirects or no redirects
+            if follow_redirects in ('always', 'never'):
+                hop_start_time = datetime.now()
+                response = session.get(
+                    site,
+                    headers=custom_header,
+                    timeout=timeout,
+                    allow_redirects=allow_redirects
+                )
+                
+                # Track timing for the initial request
+                initial_time = (datetime.now() - hop_start_time).total_seconds()
+                
+                # Track redirect chain if we're allowing redirects
+                if allow_redirects and response.history:
+                    # First, handle all the redirections that happened
+                    prev_time = initial_time
+                    for i, r in enumerate(response.history):
+                        hop_time = prev_time if i == 0 else 0.0  # We don't have individual timing for requests history
+                        redirect_chain.append((r.url, r.status_code))
+                        redirect_timing.append((r.url, r.status_code, hop_time))
+                        prev_time = 0.0  # Reset after first hop since we don't have detailed timing
+                    
+                    # Then add the final response
+                    redirect_chain.append((response.url, response.status_code))
+                    redirect_timing.append((response.url, response.status_code, 0.0))
+                elif not allow_redirects and response.is_redirect:
+                    # If we're not following redirects but got one
+                    redirect_chain.append((response.url, response.status_code))
+                    redirect_timing.append((response.url, response.status_code, initial_time))
+            else:
+                # For http-only and https-only, we already handled this with the modified session.get
+                response = session.get(
+                    site,
+                    headers=custom_header,
+                    timeout=timeout
+                )
+            
             end_time = datetime.now()
             response_time = (end_time - start_time).total_seconds()
-
-            # Track redirects
-            if response.history:
-                for r in response.history:
-                    redirect_chain.append((r.url, r.status_code))
-                redirect_chain.append((response.url, response.status_code))
 
             return SiteStatus(
                 domain=urlparse(site).hostname,
                 status=str(response.status_code),
                 message=STATUS_CODES.get(str(response.status_code), "Unknown"),
                 redirect_chain=redirect_chain,
-                response_time=response_time
+                response_time=response_time,
+                redirect_timing=redirect_timing
             )
         except Timeout:
             if attempt == retries:
@@ -338,7 +445,7 @@ def check_site(site, timeout=5.0, retries=2):
     )
 
 
-def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
+def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool, show_redirect_timing: bool = False):
     """Format & print results in columns."""
     output = ""
     if code:
@@ -356,8 +463,15 @@ def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
         
         if result.redirect_chain:
             output += "\nRedirect Chain:\n"
-            redirect_data = [[i+1, url, code] for i, (url, code) in enumerate(result.redirect_chain)]
-            output += tabulate(redirect_data, headers=["Step", "URL", "Status"], tablefmt="grid")
+            if show_redirect_timing and result.redirect_timing:
+                timing_data = []
+                for i, (url, status_code, response_time) in enumerate(result.redirect_timing):
+                    time_str = f"{response_time:.3f}s" if response_time > 0 else "–"
+                    timing_data.append([i+1, url, status_code, time_str])
+                output += tabulate(timing_data, headers=["Step", "URL", "Status", "Time"], tablefmt="grid")
+            else:
+                redirect_data = [[i+1, url, code] for i, (url, code) in enumerate(result.redirect_chain)]
+                output += tabulate(redirect_data, headers=["Step", "URL", "Status"], tablefmt="grid")
     elif quiet:
         if result.status in ('[timeout]', '[connection error]') or int(result.status) >= 400:
             output = f'{result.domain} {result.status}'
@@ -435,8 +549,20 @@ def check_sites_serial(options, successful, failures, failed_sites):
         leave=True
     ) as pbar:
         for site in options.site:
-            status = check_site(site, options.timeout, options.retries)
-            formatted_output = print_format(status, options.quiet, options.verbose, options.code)
+            status = check_site(
+                site, 
+                options.timeout, 
+                options.retries,
+                options.follow_redirects,
+                options.max_redirects
+            )
+            formatted_output = print_format(
+                status, 
+                options.quiet, 
+                options.verbose, 
+                options.code,
+                show_redirect_timing=options.show_redirect_timing
+            )
             results.append(formatted_output)
             successful, failures = process_site_status(
                 status, site, successful, failures, failed_sites
@@ -452,8 +578,14 @@ def check_sites_parallel(options, successful, failures, failed_sites):
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
         future_to_site = {
-            executor.submit(check_site, site, options.timeout, options.retries): site 
-            for site in options.site
+            executor.submit(
+                check_site,
+                site,
+                options.timeout,
+                options.retries,
+                options.follow_redirects,
+                options.max_redirects
+            ): site for site in options.site
         }
 
         with tqdm(
@@ -467,7 +599,13 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                 site = future_to_site[future]
                 try:
                     status = future.result()
-                    formatted_output = print_format(status, options.quiet, options.verbose, options.code)
+                    formatted_output = print_format(
+                        status,
+                        options.quiet, 
+                        options.verbose, 
+                        options.code,
+                        show_redirect_timing=options.show_redirect_timing
+                    )
                     results.append(formatted_output)
                     successful, failures = process_site_status(
                         status,

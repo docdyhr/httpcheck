@@ -7,9 +7,9 @@
 * Programming language: Python 3
 * Author: Thomas J. Dyhr
 * Purpose: CLI tool to Check Website HTTP Status
-* Release date: 27 April 2025
+* Release date: 29 April 2025
 
-## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--version] [site ...]
+## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
 
 ### positional arguments
 
@@ -29,6 +29,12 @@
                  set the number of retries for each request
   --workers WORKERS
                  set the number of worker threads
+  --follow-redirects {always,never,http-only,https-only}
+                 control redirect following behavior (default: always)
+  --max-redirects MAX_REDIRECTS
+                 maximum number of redirects to follow (default: 30)
+  --show-redirect-timing
+                 show detailed timing for each redirect in the chain
   --version      show program's version number and exit
 
 ### additional information
@@ -81,7 +87,10 @@ chmod + ~/bin/httpcheck
 
 * Check HTTP status codes for one or more websites
 * Support for macOS notifications on failures
-* Redirect tracking and reporting
+* Advanced redirect tracking and control
+  * Follow all redirects, none, or limit by protocol (HTTP/HTTPS)
+  * Configure maximum number of redirects to follow
+  * View detailed per-hop timing information in redirect chains
 * Threading support for faster checks
 * Progress bar for multiple site checks
 * Configurable timeouts and retries
@@ -124,6 +133,27 @@ On macOS, the tool will show notifications when sites fail checks. For sites wit
 * Shows failure count
 * Lists failed sites (when less than 10)
 * Groups notifications to avoid duplicates
+
+### advanced usage examples
+
+Control redirect behavior:
+
+```shell
+# Don't follow any redirects
+httpcheck --follow-redirects never example.com
+
+# Only follow redirects to HTTP URLs (not HTTPS)
+httpcheck --follow-redirects http-only example.com
+
+# Only follow redirects to HTTPS URLs (not HTTP)
+httpcheck --follow-redirects https-only example.com
+
+# Limit redirect chain length
+httpcheck --max-redirects 5 example.com
+
+# Show timing for each redirect hop
+httpcheck -v --show-redirect-timing example.com
+```
 
 ## history
 
