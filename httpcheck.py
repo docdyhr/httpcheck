@@ -135,6 +135,19 @@ def get_arguments():
         default=10,
         help='number of concurrent workers for fast mode')
     
+    # File input handling options
+    parser.add_argument(
+        '--file-summary',
+        dest='file_summary',
+        action='store_true',
+        help='show summary of file parsing results (valid URLs, comments, etc.)')
+    parser.add_argument(
+        '--comment-style',
+        dest='comment_style',
+        choices=['hash', 'slash', 'both'],
+        default='both',
+        help='comment style to recognize: hash (#), slash (//), or both (default: both)')
+    
     # Add redirect options
     parser.add_argument(
         '--follow-redirects',
@@ -191,17 +204,11 @@ def get_arguments():
     for site in options.site:
         if site.startswith('@'):
             try:
-                with open(site[1:], 'r') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith('#'):
-                            try:
-                                validated_url = url_validation(line)
-                                validated_sites.append(validated_url)
-                            except argparse.ArgumentTypeError as e:
-                                print(str(e))
-            except IOError as e:
-                print(f"[-] Error reading file {site[1:]}: {str(e)}")
+                handler = FileInputHandler(site[1:], verbose=options.file_summary or options.verbose, comment_style=options.comment_style)
+                for validated_url in handler.parse():
+                    validated_sites.append(validated_url)
+            except Exception as e:
+                print(f"[-] Error processing file {site[1:]}: {str(e)}")
         else:
             try:
                 validated_url = url_validation(site)
@@ -213,12 +220,19 @@ def get_arguments():
     if not validated_sites and not sys.stdin.isatty():
         for line in sys.stdin:
             line = line.strip()
-            if line:
-                try:
-                    validated_url = url_validation(line)
-                    validated_sites.append(validated_url)
-                except argparse.ArgumentTypeError as e:
-                    print(str(e))
+            if line and not (line.startswith('#') or line.startswith('//')):
+                # Basic comment handling for stdin
+                if '#' in line:
+                    line = line[:line.find('#')].strip()
+                if '//' in line:
+                    line = line[:line.find('//')].strip()
+                    
+                if line:  # Check again after comment removal
+                    try:
+                        validated_url = url_validation(line)
+                        validated_sites.append(validated_url)
+                    except argparse.ArgumentTypeError as e:
+                        print(str(e))
 
     if not validated_sites:
         parser.error(
@@ -653,6 +667,108 @@ def check_tlds(options, failures, failed_sites):
              failed_sites.append(f"{urlparse(site).hostname} (TLD Check Failed - File Missing)")
 
     return failures
+
+class FileInputHandler:
+    """Handles input from domain files with enhanced features.
+    
+    Features:
+    - Strips whitespace and handles empty lines
+    - Supports multiple comment formats (# and //)
+    - Handles inline comments
+    - Performs input validation
+    - Gracefully handles malformed lines
+    """
+    
+    def __init__(self, file_path, verbose=False, comment_style='both'):
+        """Initialize with file path and verbosity setting.
+        
+        Args:
+            file_path: Path to the file to parse
+            verbose: Whether to print verbose output
+            comment_style: Which comment style to recognize ('hash', 'slash', or 'both')
+        """
+        self.file_path = file_path
+        self.verbose = verbose
+        self.comment_style = comment_style
+        self.line_count = 0
+        self.valid_count = 0
+        self.comment_count = 0
+        self.empty_count = 0
+        self.error_count = 0
+        
+        # Set up comment markers based on style preference
+        self.comment_markers = []
+        if comment_style in ('hash', 'both'):
+            self.comment_markers.append('#')
+        if comment_style in ('slash', 'both'):
+            self.comment_markers.append('//')
+        
+    def parse(self):
+        """Parse the input file and yield valid URLs."""
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    self.line_count += 1
+                    result = self._process_line(line, line_num)
+                    if result:
+                        yield result
+                        
+            if self.verbose:
+                summary = (
+                    f"\nFile: {self.file_path}\n"
+                    f"  Lines processed: {self.line_count}\n"
+                    f"  Valid URLs: {self.valid_count}\n"
+                    f"  Comments: {self.comment_count}\n"
+                    f"  Empty lines: {self.empty_count}\n"
+                    f"  Errors: {self.error_count}\n"
+                )
+                print(summary)
+        except IOError as e:
+            print(f"[-] Error reading file {self.file_path}: {str(e)}")
+            
+    def _process_line(self, line, line_num):
+        """Process a single line from the input file."""
+        # Remove whitespace
+        line = line.strip()
+        
+        # Handle empty lines
+        if not line:
+            self.empty_count += 1
+            return None
+            
+        # Handle comments based on configured comment style
+        for marker in self.comment_markers:
+            if line.startswith(marker):
+                self.comment_count += 1
+                return None
+            
+        # Handle inline comments based on configured comment style
+        comment_pos = -1
+        for marker in self.comment_markers:
+            pos = line.find(marker)
+            if pos > 0 and (comment_pos == -1 or pos < comment_pos):
+                comment_pos = pos
+                
+        if comment_pos > 0:
+            line = line[:comment_pos].strip()
+            self.comment_count += 1
+            
+        # Skip if the line became empty after removing the comment
+        if not line:
+            self.empty_count += 1
+            return None
+            
+        # Apply URL validation
+        try:
+            validated_url = url_validation(line)
+            self.valid_count += 1
+            return validated_url
+        except argparse.ArgumentTypeError as e:
+            error_msg = f"[-] Line {line_num}: {str(e)}"
+            if self.verbose:
+                print(error_msg)
+            self.error_count += 1
+            return None
 
 def main():
     """Check websites central."""

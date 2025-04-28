@@ -9,7 +9,7 @@
 * Purpose: CLI tool to Check Website HTTP Status
 * Release date: 29 April 2025
 
-## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
+## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
 
 ### positional arguments
 
@@ -29,6 +29,10 @@
                  set the number of retries for each request
   --workers WORKERS
                  set the number of worker threads
+  --file-summary
+                 show summary of file parsing results (valid URLs, comments, etc.)
+  --comment-style {hash,slash,both}
+                 comment style to recognize: hash (#), slash (//), or both (default: both)
   --follow-redirects {always,never,http-only,https-only}
                  control redirect following behavior (default: always)
   --max-redirects MAX_REDIRECTS
@@ -91,6 +95,11 @@ chmod + ~/bin/httpcheck
   * Follow all redirects, none, or limit by protocol (HTTP/HTTPS)
   * Configure maximum number of redirects to follow
   * View detailed per-hop timing information in redirect chains
+* Enhanced file input handling
+  * Support for comments using # or // style
+  * Handles inline comments
+  * Automatically strips whitespace
+  * Detailed file parsing statistics
 * Threading support for faster checks
 * Progress bar for multiple site checks
 * Configurable timeouts and retries
@@ -153,6 +162,32 @@ httpcheck --max-redirects 5 example.com
 
 # Show timing for each redirect hop
 httpcheck -v --show-redirect-timing example.com
+```
+
+### file input examples
+
+Create a domains file with comments and use it with httpcheck:
+
+```
+# domains.txt - Example domains file
+google.com  # Search engine
+facebook.com // Social media
+twitter.com
+// Commented out: example.com
+```
+
+```shell
+# Basic file usage
+httpcheck @domains.txt
+
+# Show file parsing statistics
+httpcheck --file-summary @domains.txt
+
+# Only recognize # style comments 
+httpcheck --comment-style hash @domains.txt
+
+# Only recognize // style comments
+httpcheck --comment-style slash @domains.txt
 ```
 
 ## history

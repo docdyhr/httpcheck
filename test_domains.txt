@@ -1,0 +1,22 @@
+# This is a test domains file with various comment styles
+
+// Header comment for the file
+// Shows different comment formats and whitespace handling
+
+google.com  # This is an inline comment
+facebook.com // Another inline comment
+
+// Empty lines should be ignored
+
+// Malformed URLs will be reported with errors
+invalid-domain
+
+// Indented entries should work too
+    twitter.com
+   reddit.com  # Indented with trailing comment
+
+// Mixed whitespace
+bing.com   
+   yahoo.com
+
+// End of domains file
