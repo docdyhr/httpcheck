@@ -166,39 +166,47 @@ def get_arguments():
 
     options = parser.parse_args()
 
-    # Handle stdin if no sites provided
-    if not options.site and not sys.stdin.isatty():
-        stdin_sites = []
-        for line in sys.stdin:
-            line = line.strip()
-            if line:
-                try:
-                    validated_url = url_validation(line)
-                    stdin_sites.append(validated_url)
-                except argparse.ArgumentTypeError as e:
-                    print(str(e))
-        if stdin_sites:
-            options.site = stdin_sites
+    # Handle file input with @ prefix
+    validated_sites = []
+    for site in options.site:
+        if site.startswith('@'):
+            try:
+                with open(site[1:], 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#'):
+                            try:
+                                validated_url = url_validation(line)
+                                validated_sites.append(validated_url)
+                            except argparse.ArgumentTypeError as e:
+                                print(str(e))
+            except IOError as e:
+                print(f"[-] Error reading file {site[1:]}: {str(e)}")
         else:
-            parser.error("[-] No valid URLs provided via stdin")
-    elif not options.site:
-        parser.error(
-            "[-] Please specify a website or pipe URLs to check, "
-            "use --help for more info."
-        )
-    else:
-        # Validate command-line arguments
-        validated_sites = []
-        for site in options.site:
             try:
                 validated_url = url_validation(site)
                 validated_sites.append(validated_url)
             except argparse.ArgumentTypeError as e:
                 print(str(e))
-        options.site = validated_sites
-        if not options.site:
-            parser.error("[-] No valid URLs provided")
 
+    # Handle stdin if no sites provided
+    if not validated_sites and not sys.stdin.isatty():
+        for line in sys.stdin:
+            line = line.strip()
+            if line:
+                try:
+                    validated_url = url_validation(line)
+                    validated_sites.append(validated_url)
+                except argparse.ArgumentTypeError as e:
+                    print(str(e))
+
+    if not validated_sites:
+        parser.error(
+            "[-] Please specify a website or pipe URLs to check, "
+            "use --help for more info."
+        )
+
+    options.site = validated_sites
     return options
 
 
@@ -360,37 +368,41 @@ def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
 
 
 def notify(title, message, failed_sites=None):
-    """Send system notification using terminal-notifier."""
+    """Send system notification using osascript on macOS."""
     if platform.system() == 'Darwin':  # macOS only
         try:
-            notifier_paths = [
-                '/opt/homebrew/bin/terminal-notifier',  # Apple Silicon
-                '/usr/local/bin/terminal-notifier'      # Intel Mac
-            ]
-
-            notifier_path = next((path for path in notifier_paths if os.path.exists(path)), None)
-
-            if not notifier_path:
-                print("\nWarning: terminal-notifier not found. Please install it with: brew install terminal-notifier")
-                return
-
             notification_message = message
-            if failed_sites and len(failed_sites) < 10:
-                failed_list = "\n".join(f"• {site}" for site in failed_sites)
-                notification_message = f"{message}\n\nFailed sites:\n{failed_list}"
+            subtitle = ""
+            if failed_sites:
+                # Use subtitle for summary, keep message concise
+                subtitle = message # Original summary message
+                if len(failed_sites) < 10:
+                    failed_list = "\n".join(f"• {site}" for site in failed_sites)
+                    notification_message = f"Failed sites:\n{failed_list}"
+                else:
+                     notification_message = f"{len(failed_sites)} sites failed. See terminal for details."
 
-            cmd = [
-                notifier_path,
-                '-title', title,
-                '-message', notification_message,
-                '-group', 'httpcheck'
-            ]
 
-            subprocess.run(cmd, check=False)
+            # Construct the AppleScript command
+            script = (
+                f'display notification "{notification_message}" '
+                f'with title "{title}" '
+                f'subtitle "{subtitle}"'
+            )
+            cmd = ['osascript', '-e', script]
 
-        except subprocess.SubprocessError as e:
-            print(f"\nWarning: Could not send notification: {str(e)}")
-            print("Please ensure terminal-notifier is installed: brew install terminal-notifier")
+            # Execute the command
+            subprocess.run(cmd, check=True, capture_output=True)
+
+        except FileNotFoundError:
+             # This should generally not happen on macOS as osascript is standard
+            print("\nWarning: 'osascript' command not found. Cannot send notification.")
+        except subprocess.CalledProcessError as e:
+            # Handle errors from osascript execution
+            print(f"\nWarning: Could not send notification using osascript: {e.stderr.decode()}")
+        except Exception as e:
+            # Catch any other unexpected errors
+            print(f"\nWarning: An unexpected error occurred during notification: {str(e)}")
 
 
 def process_site_status(site_status, site_url, successful, failures, failed_sites):
@@ -476,8 +488,16 @@ def check_tlds(options, failures, failed_sites):
     """Check TLDs if requested."""
     if not options.tld:
         return failures
-    
-    tld_file = "effective_tld_names.dat"
+
+    # Define the path relative to the script's directory or use an absolute path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    tld_file = os.path.join(script_dir, "effective_tld_names.dat") # Assuming the file is in the same directory
+
+    if not os.path.exists(tld_file):
+        print(f"[-] TLD file not found at: {tld_file}")
+        # Optionally, you might want to exit or handle this differently
+        return failures # Continue without TLD check if file is missing
+
     for site in options.site:
         try:
             tld_check(site, tld_file)
@@ -485,6 +505,12 @@ def check_tlds(options, failures, failed_sites):
             print(str(e))
             failures += 1
             failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
+        except FileNotFoundError: # Catch if load_tlds fails inside tld_check
+             print(f"[-] Error accessing TLD file during check for {site}: {tld_file}")
+             # Decide how to handle this - maybe skip TLD check for this site or all sites
+             failures += 1 # Count as failure if TLD check is critical
+             failed_sites.append(f"{urlparse(site).hostname} (TLD Check Failed - File Missing)")
+
     return failures
 
 def main():
