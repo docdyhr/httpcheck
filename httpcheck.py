@@ -340,11 +340,10 @@ def check_site(site, timeout=5.0, retries=2):
 
 def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
     """Format & print results in columns."""
+    output = ""
     if code:
-        print(result.status)
-        return
-
-    if verbose:
+        output = result.status
+    elif verbose:
         headers = ["Domain", "Status", "Response Time", "Message"]
         table_data = [[
             result.domain,
@@ -353,18 +352,19 @@ def print_format(result: SiteStatus, quiet: bool, verbose: bool, code: bool):
             STATUS_CODES.get(str(result.status), "Unknown")
         ]]
 
-        print(tabulate(table_data, headers=headers, tablefmt="grid"))
-
+        output = tabulate(table_data, headers=headers, tablefmt="grid")
+        
         if result.redirect_chain:
-            print("\nRedirect Chain:")
+            output += "\nRedirect Chain:\n"
             redirect_data = [[i+1, url, code] for i, (url, code) in enumerate(result.redirect_chain)]
-            print(tabulate(redirect_data, headers=["Step", "URL", "Status"], tablefmt="grid"))
-            print()
+            output += tabulate(redirect_data, headers=["Step", "URL", "Status"], tablefmt="grid")
     elif quiet:
         if result.status in ('[timeout]', '[connection error]') or int(result.status) >= 400:
-            print(f'{result.domain} {result.status}')
+            output = f'{result.domain} {result.status}'
     else:
-        print(tabulate([[result.domain, result.status]], tablefmt="simple"))
+        output = tabulate([[result.domain, result.status]], tablefmt="simple")
+    
+    return output
 
 
 def notify(title, message, failed_sites=None):
@@ -426,62 +426,65 @@ def process_site_status(site_status, site_url, successful, failures, failed_site
 
 def check_sites_serial(options, successful, failures, failed_sites):
     """Check sites one at a time."""
-    for site in tqdm(
-        options.site,
+    results = []
+    with tqdm(
+        total=len(options.site),
         desc="Checking sites",
-        disable=options.quiet
-    ):
-        status = check_site(site, options.timeout, options.retries)
-        print_format(status, options.quiet, options.verbose, options.code)
-        successful, failures = process_site_status(
-            status, site, successful, failures, failed_sites
-        )
+        disable=options.quiet,
+        position=0,
+        leave=True
+    ) as pbar:
+        for site in options.site:
+            status = check_site(site, options.timeout, options.retries)
+            formatted_output = print_format(status, options.quiet, options.verbose, options.code)
+            results.append(formatted_output)
+            successful, failures = process_site_status(
+                status, site, successful, failures, failed_sites
+            )
+            pbar.update(1)
+    
+    # Print results after progress bar is done
+    print("\n".join(filter(None, results)))
     return successful, failures
 
 def check_sites_parallel(options, successful, failures, failed_sites):
     """Check sites in parallel using ThreadPoolExecutor."""
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=options.workers
-    ) as executor:
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
         future_to_site = {
-            executor.submit(
-                check_site,
-                site,
-                options.timeout,
-                options.retries
-            ): site for site in options.site
+            executor.submit(check_site, site, options.timeout, options.retries): site 
+            for site in options.site
         }
 
-        progress_bar = tqdm(
+        with tqdm(
             total=len(future_to_site),
             desc="Checking sites",
-            disable=options.quiet
-        )
-
-        for future in concurrent.futures.as_completed(future_to_site):
-            site = future_to_site[future]
-            try:
-                status = future.result()
-                print_format(
-                    status,
-                    options.quiet,
-                    options.verbose,
-                    options.code
-                )
-                successful, failures = process_site_status(
-                    status,
-                    site,
-                    successful,
-                    failures,
-                    failed_sites
-                )
-            except (RequestException, RuntimeError) as e:
-                print(f"[-] {site}: {str(e)}")
-                failures += 1
-                failed_sites.append(f"{urlparse(site).hostname} (Error)")
-            progress_bar.update(1)
-
-        progress_bar.close()
+            disable=options.quiet,
+            position=0,
+            leave=True
+        ) as pbar:
+            for future in concurrent.futures.as_completed(future_to_site):
+                site = future_to_site[future]
+                try:
+                    status = future.result()
+                    formatted_output = print_format(status, options.quiet, options.verbose, options.code)
+                    results.append(formatted_output)
+                    successful, failures = process_site_status(
+                        status,
+                        site,
+                        successful,
+                        failures,
+                        failed_sites
+                    )
+                except (RequestException, RuntimeError) as e:
+                    error_msg = f"[-] {site}: {str(e)}"
+                    results.append(error_msg)
+                    failures += 1
+                    failed_sites.append(f"{urlparse(site).hostname} (Error)")
+                pbar.update(1)
+    
+    # Print results after progress bar is done
+    print("\n".join(filter(None, results)))
     return successful, failures
 
 def check_tlds(options, failures, failed_sites):
