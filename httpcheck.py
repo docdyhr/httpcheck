@@ -18,8 +18,12 @@ import re
 import subprocess
 import sys
 import textwrap
-from datetime import datetime
-from typing import List, NamedTuple
+import urllib.request
+import pickle
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import List, NamedTuple, Set, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -119,6 +123,30 @@ def get_arguments():
         action='store_true',
         dest='tld',
         help='check if domain is in global list of TLDs')
+    
+    # TLD validation options
+    parser.add_argument(
+        '--disable-tld-checks',
+        dest='disable_tld',
+        action='store_true',
+        help='disable TLD validation checks')
+    parser.add_argument(
+        '--tld-warning-only',
+        dest='tld_warning_only',
+        action='store_true',
+        help='show warnings for invalid TLDs without failing')
+    parser.add_argument(
+        '--update-tld-list',
+        dest='update_tld',
+        action='store_true',
+        help='force update of the TLD list from publicsuffix.org')
+    parser.add_argument(
+        '--tld-cache-days',
+        dest='tld_cache_days',
+        type=int,
+        default=30,
+        help='number of days to keep the TLD cache valid (default: 30)')
+    
     parser.add_argument(
         '--timeout',
         type=float,
@@ -641,31 +669,36 @@ def check_sites_parallel(options, successful, failures, failed_sites):
 
 def check_tlds(options, failures, failed_sites):
     """Check TLDs if requested."""
+    # Skip TLD checks if disabled
+    if options.disable_tld:
+        return failures
+    
+    # Skip if TLD check not requested
     if not options.tld:
         return failures
 
-    # Define the path relative to the script's directory or use an absolute path
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    tld_file = os.path.join(script_dir, "effective_tld_names.dat") # Assuming the file is in the same directory
-
-    if not os.path.exists(tld_file):
-        print(f"[-] TLD file not found at: {tld_file}")
-        # Optionally, you might want to exit or handle this differently
-        return failures # Continue without TLD check if file is missing
-
-    for site in options.site:
-        try:
-            tld_check(site, tld_file)
-        except InvalidTLDException as e:
-            print(str(e))
-            failures += 1
-            failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
-        except FileNotFoundError: # Catch if load_tlds fails inside tld_check
-             print(f"[-] Error accessing TLD file during check for {site}: {tld_file}")
-             # Decide how to handle this - maybe skip TLD check for this site or all sites
-             failures += 1 # Count as failure if TLD check is critical
-             failed_sites.append(f"{urlparse(site).hostname} (TLD Check Failed - File Missing)")
-
+    try:
+        # Initialize TLDManager with options
+        tld_manager = TLDManager(
+            force_update=options.update_tld,
+            cache_days=options.tld_cache_days,
+            verbose=options.verbose,
+            warning_only=options.tld_warning_only
+        )
+        
+        # Check each site
+        for site in options.site:
+            try:
+                tld_manager.validate_tld(site)
+            except InvalidTLDException as e:
+                print(str(e))
+                failures += 1
+                failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
+                
+    except Exception as e:
+        if options.verbose:
+            print(f"[-] Error during TLD validation: {str(e)}")
+        
     return failures
 
 class FileInputHandler:
@@ -769,6 +802,225 @@ class FileInputHandler:
                 print(error_msg)
             self.error_count += 1
             return None
+
+class TLDManager:
+    """Manager for TLD (Top-Level Domain) operations with caching and auto-updates.
+    
+    This class handles TLD validation against the Public Suffix List with:
+    - Memory caching for better performance
+    - Disk-based caching for persistence between runs
+    - Automatic updates of the TLD list
+    - Flexible configuration options
+    """
+    
+    # Singleton instance
+    _instance = None
+    
+    # Default TLD source URL from Public Suffix List
+    TLD_SOURCE_URL = "https://publicsuffix.org/list/public_suffix_list.dat"
+    
+    # Default cache settings
+    DEFAULT_CACHE_PATH = os.path.join(os.path.expanduser("~"), ".httpcheck")
+    DEFAULT_CACHE_FILE = "tld_cache.pickle"
+    DEFAULT_CACHE_DAYS = 30
+    
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of TLDManager exists (singleton pattern)."""
+        if cls._instance is None:
+            cls._instance = super(TLDManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self, force_update=False, cache_days=None, verbose=False, warning_only=False):
+        """Initialize the TLD manager.
+        
+        Args:
+            force_update: Whether to force an update of the TLD list
+            cache_days: Number of days to keep the cache valid (default: 30)
+            verbose: Whether to print verbose output
+            warning_only: If True, invalid TLDs will produce warnings instead of errors
+        """
+        # Skip initialization if already initialized (singleton pattern)
+        if self._initialized:
+            return
+            
+        self.verbose = verbose
+        self.warning_only = warning_only
+        self.cache_days = cache_days or self.DEFAULT_CACHE_DAYS
+        self.cache_path = self.DEFAULT_CACHE_PATH
+        self.cache_file = os.path.join(self.cache_path, self.DEFAULT_CACHE_FILE)
+        self.tlds = set()  # Use a set for O(1) lookups
+        self.update_time = None
+        
+        # Ensure cache directory exists
+        os.makedirs(self.cache_path, exist_ok=True)
+        
+        # Load TLD data with optional update
+        self._load_tld_data(force_update)
+        self._initialized = True
+    
+    def _load_tld_data(self, force_update=False):
+        """Load TLD data from cache or source file."""
+        # Check if we need to update based on cache age or forced update
+        if force_update or not self._load_from_cache():
+            try:
+                self._update_tld_list()
+            except Exception as e:
+                if self.verbose:
+                    print(f"[-] Error updating TLD list: {str(e)}")
+                # If update fails and we don't have a cache, try to load from local file
+                if not self.tlds:
+                    self._load_from_local_file()
+        
+    def _load_from_cache(self):
+        """Load TLD data from the cache file if it exists and is not expired."""
+        try:
+            if not os.path.exists(self.cache_file):
+                return False
+                
+            # Check if cache is expired
+            cache_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(self.cache_file))
+            if cache_age.days > self.cache_days:
+                if self.verbose:
+                    print(f"[*] TLD cache is {cache_age.days} days old (max: {self.cache_days}). Refreshing...")
+                return False
+                
+            # Load cache
+            with open(self.cache_file, 'rb') as f:
+                cache_data = pickle.load(f)
+                self.tlds = cache_data['tlds']
+                self.update_time = cache_data['update_time']
+                
+            if self.verbose:
+                print(f"[*] Loaded {len(self.tlds)} TLDs from cache (last updated: {self.update_time})")
+            return True
+            
+        except (IOError, pickle.UnpicklingError, KeyError) as e:
+            if self.verbose:
+                print(f"[-] Error loading TLD cache: {str(e)}")
+            return False
+    
+    def _save_to_cache(self):
+        """Save TLD data to the cache file."""
+        try:
+            cache_data = {
+                'tlds': self.tlds,
+                'update_time': self.update_time
+            }
+            with open(self.cache_file, 'wb') as f:
+                pickle.dump(cache_data, f)
+                
+            if self.verbose:
+                print(f"[*] Saved {len(self.tlds)} TLDs to cache")
+                
+        except (IOError, pickle.PicklingError) as e:
+            if self.verbose:
+                print(f"[-] Error saving TLD cache: {str(e)}")
+    
+    def _update_tld_list(self):
+        """Update the TLD list from the Public Suffix List."""
+        if self.verbose:
+            print("[*] Updating TLD list from Public Suffix List...")
+            
+        try:
+            # Use requests instead of urllib for better error handling and timeouts
+            response = requests.get(self.TLD_SOURCE_URL, timeout=10)
+            response.raise_for_status()  # Raise exception for HTTP errors
+            
+            # Process the TLD list
+            tlds = set()
+            for line in response.text.splitlines():
+                line = line.strip()
+                # Skip empty lines, comments, and private domains
+                if not line or line.startswith('//') or line.startswith('*.'):
+                    continue
+                tlds.add(line)
+                
+            # Update only if we got a non-empty list
+            if tlds:
+                self.tlds = tlds
+                self.update_time = datetime.now()
+                self._save_to_cache()
+                
+                if self.verbose:
+                    print(f"[*] Updated TLD list with {len(self.tlds)} entries")
+            else:
+                raise ValueError("Downloaded TLD list is empty")
+                
+        except Exception as e:
+            if self.verbose:
+                print(f"[-] Failed to update TLD list: {str(e)}")
+            raise
+    
+    def _load_from_local_file(self):
+        """Fall back to loading TLDs from the local effective_tld_names.dat file."""
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            tld_file = os.path.join(script_dir, "effective_tld_names.dat")
+            
+            if not os.path.exists(tld_file):
+                if self.verbose:
+                    print(f"[-] Local TLD file not found: {tld_file}")
+                return False
+            
+            tlds = set()
+            with open(tld_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('//'):
+                        tlds.add(line)
+            
+            self.tlds = tlds
+            self.update_time = datetime.fromtimestamp(os.path.getmtime(tld_file))
+            
+            if self.verbose:
+                print(f"[*] Loaded {len(self.tlds)} TLDs from local file (last modified: {self.update_time})")
+                
+            # Save to cache for future use
+            self._save_to_cache()
+            return True
+            
+        except Exception as e:
+            if self.verbose:
+                print(f"[-] Error loading local TLD file: {str(e)}")
+            return False
+    
+    def validate_tld(self, url):
+        """Validate that a URL has a valid top-level domain.
+        
+        Args:
+            url: The URL to validate
+            
+        Returns:
+            The valid TLD if found
+            
+        Raises:
+            InvalidTLDException: If the TLD is invalid and warning_only is False
+        """
+        if not self.tlds:
+            raise InvalidTLDException("TLD list is empty. Cannot validate TLDs.")
+        
+        parsed_url = urlparse(url)
+        url_elements = parsed_url.netloc.split('.')
+        
+        for i in range(-len(url_elements), 0):
+            last_i_elements = url_elements[i:]
+            candidate = ".".join(last_i_elements)
+            wildcard_candidate = ".".join(["*"] + last_i_elements[1:])
+            exception_candidate = f"!{candidate}"
+            
+            if exception_candidate in self.tlds:
+                return ".".join(url_elements[i:])
+            if candidate in self.tlds or wildcard_candidate in self.tlds:
+                return ".".join(url_elements[i - 1:])
+        
+        error_msg = f"[-] Domain not in global list of TLDs: '{url}'"
+        if self.warning_only:
+            if self.verbose:
+                print(f"[!] WARNING: {error_msg}")
+            return None
+        else:
+            raise InvalidTLDException(error_msg)
 
 def main():
     """Check websites central."""

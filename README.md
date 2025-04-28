@@ -9,37 +9,37 @@
 * Purpose: CLI tool to Check Website HTTP Status
 * Release date: 29 April 2025
 
-## usage: httpcheck [-h] [-t] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
+## usage: httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
 
 ### positional arguments
 
-  site           return http status codes for one or more websites
+  site                   return http status codes for one or more websites
 
 ### optional arguments
 
-  -h, --help     show this help message and exit
-  -t, --tld      check if domain is in global list of TLDs
-  -q, --quiet    only print errors
-  -v, --verbose  increase output verbosity
-  -c, --code     only print status code
-  -f, --fast     fast check wtih threading
-  --timeout TIMEOUT
-                 set the timeout for each request
-  --retries RETRIES
-                 set the number of retries for each request
-  --workers WORKERS
-                 set the number of worker threads
-  --file-summary
-                 show summary of file parsing results (valid URLs, comments, etc.)
+  -h, --help             show this help message and exit
+  -t, --tld              check if domain is in global list of TLDs
+  --disable-tld-checks   disable TLD validation checks
+  --tld-warning-only     show warnings for invalid TLDs without failing
+  --update-tld-list      force update of the TLD list from publicsuffix.org
+  --tld-cache-days TLD_CACHE_DAYS
+                         number of days to keep the TLD cache valid (default: 30)
+  -q, --quiet            only print errors
+  -v, --verbose          increase output verbosity
+  -c, --code             only print status code
+  -f, --fast             fast check wtih threading
+  --timeout TIMEOUT      set the timeout for each request
+  --retries RETRIES      set the number of retries for each request
+  --workers WORKERS      set the number of worker threads
+  --file-summary         show summary of file parsing results (valid URLs, comments, etc.)
   --comment-style {hash,slash,both}
-                 comment style to recognize: hash (#), slash (//), or both (default: both)
+                         comment style to recognize: hash (#), slash (//), or both (default: both)
   --follow-redirects {always,never,http-only,https-only}
-                 control redirect following behavior (default: always)
+                         control redirect following behavior (default: always)
   --max-redirects MAX_REDIRECTS
-                 maximum number of redirects to follow (default: 30)
-  --show-redirect-timing
-                 show detailed timing for each redirect in the chain
-  --version      show program's version number and exit
+                         maximum number of redirects to follow (default: 30)
+  --show-redirect-timing show detailed timing for each redirect in the chain
+  --version              show program's version number and exit
 
 ### additional information
 
@@ -95,6 +95,11 @@ chmod + ~/bin/httpcheck
   * Follow all redirects, none, or limit by protocol (HTTP/HTTPS)
   * Configure maximum number of redirects to follow
   * View detailed per-hop timing information in redirect chains
+* Enhanced TLD validation
+  * Caches TLD list for better performance
+  * Auto-updates from Public Suffix List
+  * Configurable cache duration
+  * Optional warning-only mode
 * Enhanced file input handling
   * Support for comments using # or // style
   * Handles inline comments
@@ -162,6 +167,27 @@ httpcheck --max-redirects 5 example.com
 
 # Show timing for each redirect hop
 httpcheck -v --show-redirect-timing example.com
+```
+
+### tld validation examples
+
+Control TLD validation behavior:
+
+```shell
+# Enable TLD validation
+httpcheck -t example.com
+
+# Force update of the TLD list from Public Suffix List
+httpcheck -t --update-tld-list example.com
+
+# Warn about invalid TLDs but don't fail
+httpcheck -t --tld-warning-only example.com
+
+# Disable TLD checks completely
+httpcheck --disable-tld-checks example.com
+
+# Set cache expiration to 60 days
+httpcheck -t --tld-cache-days 60 example.com
 ```
 
 ### file input examples
