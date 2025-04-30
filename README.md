@@ -66,6 +66,7 @@ python3 -m pip install -r requirements.txt --user
 ```
 
 On macOS, install terminal-notifier for notifications:
+
 ```shell
 brew install terminal-notifier
 ```
@@ -194,7 +195,7 @@ httpcheck -t --tld-cache-days 60 example.com
 
 Create a domains file with comments and use it with httpcheck:
 
-```
+```txt
 # domains.txt - Example domains file
 google.com  # Search engine
 facebook.com // Social media
