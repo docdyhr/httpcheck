@@ -16,7 +16,7 @@ python3 -c "import rumps, requests, httpcheck" 2>/dev/null
 if [ $? -ne 0 ]; then
     echo "⚠️  Missing dependencies. Installing..."
     pip install rumps requests tqdm tabulate pyobjc
-    
+
     if [ $? -ne 0 ]; then
         echo "❌ Failed to install dependencies"
         exit 1

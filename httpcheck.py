@@ -7,7 +7,6 @@ Release date: 27 April 2025
 Version: 1.3.0
 """
 
-from __future__ import with_statement
 
 import argparse
 import concurrent.futures
@@ -237,9 +236,7 @@ def get_arguments():
         dest="fast",
         help="fast check wtih threading",
     )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {VERSION}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
 
     options = parser.parse_args()
 
@@ -353,11 +350,11 @@ class SiteStatus(NamedTuple):
     domain: str
     status: str
     message: str
-    redirect_chain: List[tuple] = []
+    redirect_chain: list[tuple] = []
     response_time: float = 0.0
-    redirect_timing: List[
-        tuple
-    ] = []  # List of (url, status_code, response_time) tuples
+    redirect_timing: list[tuple] = (
+        []
+    )  # List of (url, status_code, response_time) tuples
 
 
 def check_site(
@@ -416,9 +413,7 @@ def check_site(
                 )
 
                 # Calculate and store timing for this redirect
-                redirect_elapsed = (
-                    datetime.now() - redirect_time
-                ).total_seconds()
+                redirect_elapsed = (datetime.now() - redirect_time).total_seconds()
                 redirect_timing.append(
                     (redirect_url, response.status_code, redirect_elapsed)
                 )
@@ -463,9 +458,7 @@ def check_site(
 
                     # Then add the final response
                     redirect_chain.append((response.url, response.status_code))
-                    redirect_timing.append(
-                        (response.url, response.status_code, 0.0)
-                    )
+                    redirect_timing.append((response.url, response.status_code, 0.0))
                 elif not allow_redirects and response.is_redirect:
                     # If we're not following redirects but got one
                     redirect_chain.append((response.url, response.status_code))
@@ -474,9 +467,7 @@ def check_site(
                     )
             else:
                 # For http-only and https-only, we already handled this with the modified session.get
-                response = session.get(
-                    site, headers=custom_header, timeout=timeout
-                )
+                response = session.get(site, headers=custom_header, timeout=timeout)
 
             end_time = datetime.now()
             response_time = (end_time - start_time).total_seconds()
@@ -512,9 +503,7 @@ def check_site(
                 )
 
     # Default return in case all retries fail
-    return SiteStatus(
-        urlparse(site).hostname, "[unknown error]", "All retries failed"
-    )
+    return SiteStatus(urlparse(site).hostname, "[unknown error]", "All retries failed")
 
 
 def print_format(
@@ -548,9 +537,7 @@ def print_format(
                 for i, (url, status_code, response_time) in enumerate(
                     result.redirect_timing
                 ):
-                    time_str = (
-                        f"{response_time:.3f}s" if response_time > 0 else "–"
-                    )
+                    time_str = f"{response_time:.3f}s" if response_time > 0 else "–"
                     timing_data.append([i + 1, url, status_code, time_str])
                 output += tabulate(
                     timing_data,
@@ -589,18 +576,20 @@ def notify(title, message, failed_sites=None):
                 # Use subtitle for summary, keep message concise
                 subtitle = message  # Original summary message
                 if len(failed_sites) < 10:
-                    failed_list = "\n".join(
-                        f"• {site}" for site in failed_sites
-                    )
+                    failed_list = "\n".join(f"• {site}" for site in failed_sites)
                     notification_message = f"Failed sites:\n{failed_list}"
                 else:
-                    notification_message = f"{len(failed_sites)} sites failed. See terminal for details."
+                    notification_message = (
+                        f"{len(failed_sites)} sites failed. See terminal for details."
+                    )
 
             # Construct the AppleScript command with proper escaping
-            escaped_message = notification_message.replace('"', '\\"').replace('\n', '\\n')
+            escaped_message = notification_message.replace('"', '\\"').replace(
+                "\n", "\\n"
+            )
             escaped_title = title.replace('"', '\\"')
             escaped_subtitle = subtitle.replace('"', '\\"')
-            
+
             script = (
                 f'display notification "{escaped_message}" '
                 f'with title "{escaped_title}" '
@@ -613,9 +602,7 @@ def notify(title, message, failed_sites=None):
 
         except FileNotFoundError:
             # This should generally not happen on macOS as osascript is standard
-            print(
-                "\nWarning: 'osascript' command not found. Cannot send notification."
-            )
+            print("\nWarning: 'osascript' command not found. Cannot send notification.")
         except subprocess.CalledProcessError as e:
             # Handle errors from osascript execution
             print(
@@ -628,9 +615,7 @@ def notify(title, message, failed_sites=None):
             )
 
 
-def process_site_status(
-    site_status, site_url, successful, failures, failed_sites
-):
+def process_site_status(site_status, site_url, successful, failures, failed_sites):
     """Process a site's status and update counters."""
     if not isinstance(site_status, SiteStatus):
         failures += 1
@@ -689,9 +674,7 @@ def check_sites_serial(options, successful, failures, failed_sites):
 def check_sites_parallel(options, successful, failures, failed_sites):
     """Check sites in parallel using ThreadPoolExecutor."""
     results = []
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=options.workers
-    ) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=options.workers) as executor:
         future_to_site = {
             executor.submit(
                 check_site,
@@ -811,7 +794,7 @@ class FileInputHandler:
     def parse(self):
         """Parse the input file and yield valid URLs."""
         try:
-            with open(self.file_path, "r", encoding="utf-8") as f:
+            with open(self.file_path, encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     self.line_count += 1
                     result = self._process_line(line, line_num)
@@ -828,7 +811,7 @@ class FileInputHandler:
                     f"  Errors: {self.error_count}\n"
                 )
                 print(summary)
-        except IOError as e:
+        except OSError as e:
             print(f"[-] Error reading file {self.file_path}: {str(e)}")
 
     def _process_line(self, line, line_num):
@@ -900,7 +883,7 @@ class TLDManager:
     def __new__(cls, *args, **kwargs):
         """Ensure only one instance of TLDManager exists (singleton pattern)."""
         if cls._instance is None:
-            cls._instance = super(TLDManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
@@ -980,7 +963,7 @@ class TLDManager:
                 )
             return True
 
-        except (IOError, pickle.UnpicklingError, KeyError) as e:
+        except (OSError, pickle.UnpicklingError, KeyError) as e:
             if self.verbose:
                 print(f"[-] Error loading TLD cache: {str(e)}")
             return False
@@ -995,7 +978,7 @@ class TLDManager:
             if self.verbose:
                 print(f"[*] Saved {len(self.tlds)} TLDs to cache")
 
-        except (IOError, pickle.PicklingError) as e:
+        except (OSError, pickle.PicklingError) as e:
             if self.verbose:
                 print(f"[-] Error saving TLD cache: {str(e)}")
 
@@ -1046,16 +1029,14 @@ class TLDManager:
                 return False
 
             tlds = set()
-            with open(tld_file, "r", encoding="utf-8") as f:
+            with open(tld_file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("//"):
                         tlds.add(line)
 
             self.tlds = tlds
-            self.update_time = datetime.fromtimestamp(
-                os.path.getmtime(tld_file)
-            )
+            self.update_time = datetime.fromtimestamp(os.path.getmtime(tld_file))
 
             if self.verbose:
                 print(
@@ -1084,9 +1065,7 @@ class TLDManager:
             InvalidTLDException: If the TLD is invalid and warning_only is False
         """
         if not self.tlds:
-            raise InvalidTLDException(
-                "TLD list is empty. Cannot validate TLDs."
-            )
+            raise InvalidTLDException("TLD list is empty. Cannot validate TLDs.")
 
         parsed_url = urlparse(url)
         url_elements = parsed_url.netloc.split(".")

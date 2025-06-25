@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# -*- coding: utf-8 -*-
 """Module for checking HTTP response status codes from provided URLs."""
 import argparse
 import sys
@@ -19,8 +18,8 @@ def get_page(url):
 def main(argv=sys.argv[1:]):
     """Get urls from command line return and print status code"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--urlfile', type=argparse.FileType('rt'), default=sys.stdin)
-    parser.add_argument('urls', nargs='*')
+    parser.add_argument("--urlfile", type=argparse.FileType("rt"), default=sys.stdin)
+    parser.add_argument("urls", nargs="*")
     args = parser.parse_args(argv)
 
     for url in args.urls:
@@ -33,5 +32,5 @@ def main(argv=sys.argv[1:]):
         print(code, url)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

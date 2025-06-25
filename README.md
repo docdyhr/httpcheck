@@ -1,4 +1,11 @@
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/requests) [![GitHub issues](https://img.shields.io/github/issues/docdyhr/httpcheck)](https://github.com/docdyhr/httpcheck/issues)  ![GitHub repo size](https://img.shields.io/github/repo-size/docdyhr/httpcheck) ![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
+[![CI/CD Pipeline](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml)
+[![Quick Pylint Check](https://github.com/docdyhr/httpcheck/actions/workflows/pylint.yml/badge.svg)](https://github.com/docdyhr/httpcheck/actions/workflows/pylint.yml)
+[![CodeQL](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml/badge.svg?event=schedule)](https://github.com/docdyhr/httpcheck/security/code-scanning)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+![Python Version](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
+[![GitHub issues](https://img.shields.io/github/issues/docdyhr/httpcheck)](https://github.com/docdyhr/httpcheck/issues)
+![GitHub repo size](https://img.shields.io/github/repo-size/docdyhr/httpcheck)
+![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
 
 # Check Websites HTTP Status Codes with httpcheck
 
@@ -11,7 +18,7 @@
 * Purpose: CLI tool to Check Website HTTP Status + macOS Menu Bar App
 * Release date: 29 April 2025
 
-## usage: 
+## usage:
 httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
 
 ### positional arguments
@@ -46,7 +53,7 @@ httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-li
 
 ### additional information
 
-  enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'  
+  enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'
   read sites from a file: 'httpcheck @domains.txt'.
 
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
@@ -219,7 +226,7 @@ httpcheck @domains.txt
 # Show file parsing statistics
 httpcheck --file-summary @domains.txt
 
-# Only recognize # style comments 
+# Only recognize # style comments
 httpcheck --comment-style hash @domains.txt
 
 # Only recognize // style comments

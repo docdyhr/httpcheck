@@ -8,118 +8,120 @@ from setuptools import setup
 # Read version from httpcheck.py
 version = "1.3.0"
 try:
-    with open('httpcheck.py', 'r') as f:
+    with open("httpcheck.py") as f:
         for line in f:
-            if line.startswith('VERSION = '):
-                version = line.split('=')[1].strip().strip('"\'')
+            if line.startswith("VERSION = "):
+                version = line.split("=")[1].strip().strip("\"'")
                 break
 except Exception:
     pass
 
-APP = ['httpcheck_menubar.py']
+APP = ["httpcheck_menubar.py"]
 DATA_FILES = [
-    ('', ['httpcheck.py']),  # Include main httpcheck module
-    ('', ['requirements.txt']),
-    ('', ['domains.txt']),
-    ('', ['README.md']),
+    ("", ["httpcheck.py"]),  # Include main httpcheck module
+    ("", ["requirements.txt"]),
+    ("", ["domains.txt"]),
+    ("", ["README.md"]),
 ]
 
 # Resources for the app bundle
 RESOURCES = []
 
 OPTIONS = {
-    'argv_emulation': False,
-    'iconfile': None,  # Add path to .icns file if you have one
-    'plist': {
-        'CFBundleName': 'onSite',
-        'CFBundleDisplayName': 'onSite',
-        'CFBundleIdentifier': 'com.onsite.menubar',
-        'CFBundleVersion': version,
-        'CFBundleShortVersionString': version,
-        'CFBundleInfoDictionaryVersion': '6.0',
-        'CFBundleExecutable': 'onSite',
-        'NSHumanReadableCopyright': ('Copyright © June 2025 Thomas Juul '
-                                     'Dyhr. All rights reserved.'),
-        'LSUIElement': True,  # Hide from dock (menu bar only app)
-        'NSAppTransportSecurity': {
-            'NSAllowsArbitraryLoads': True,  # Allow HTTP requests
+    "argv_emulation": False,
+    "iconfile": None,  # Add path to .icns file if you have one
+    "plist": {
+        "CFBundleName": "onSite",
+        "CFBundleDisplayName": "onSite",
+        "CFBundleIdentifier": "com.onsite.menubar",
+        "CFBundleVersion": version,
+        "CFBundleShortVersionString": version,
+        "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleExecutable": "onSite",
+        "NSHumanReadableCopyright": (
+            "Copyright © June 2025 Thomas Juul " "Dyhr. All rights reserved."
+        ),
+        "LSUIElement": True,  # Hide from dock (menu bar only app)
+        "NSAppTransportSecurity": {
+            "NSAllowsArbitraryLoads": True,  # Allow HTTP requests
         },
         # Show notifications as alerts
-        'NSUserNotificationAlertStyle': 'alert',
-        'LSMinimumSystemVersion': '10.13',  # Minimum macOS version
+        "NSUserNotificationAlertStyle": "alert",
+        "LSMinimumSystemVersion": "10.13",  # Minimum macOS version
     },
-    'packages': [
-        'rumps',
-        'requests',
-        'urllib3',
-        'certifi',
-        'charset_normalizer',
-        'idna',
-        'Foundation',
-        'AppKit',
-        'CoreFoundation',
-        'objc',
+    "packages": [
+        "rumps",
+        "requests",
+        "urllib3",
+        "certifi",
+        "charset_normalizer",
+        "idna",
+        "Foundation",
+        "AppKit",
+        "CoreFoundation",
+        "objc",
     ],
-    'includes': [
-        'httpcheck',
-        'macos_notifications',
+    "includes": [
+        "httpcheck",
+        "macos_notifications",
     ],
-    'excludes': [
-        'tkinter',
-        'matplotlib',
-        'numpy',
-        'scipy',
-        'pandas',
-        'PIL',
-        'PyQt5',
-        'PyQt6',
-        'PySide2',
-        'PySide6',
+    "excludes": [
+        "tkinter",
+        "matplotlib",
+        "numpy",
+        "scipy",
+        "pandas",
+        "PIL",
+        "PyQt5",
+        "PyQt6",
+        "PySide2",
+        "PySide6",
     ],
-    'resources': RESOURCES,
-    'optimize': 2,
-    'compressed': True,
-    'strip': True,
+    "resources": RESOURCES,
+    "optimize": 2,
+    "compressed": True,
+    "strip": True,
 }
 
 setup(
-    name='onSite',
+    name="onSite",
     version=version,
-    description='Monitor HTTP endpoints from your macOS menu bar',
-    author='Thomas Juul Dyhr',
-    author_email='thomas@dyhr.com',
+    description="Monitor HTTP endpoints from your macOS menu bar",
+    author="Thomas Juul Dyhr",
+    author_email="thomas@dyhr.com",
     app=APP,
     data_files=DATA_FILES,
-    options={'py2app': OPTIONS},
-    setup_requires=['py2app'],
+    options={"py2app": OPTIONS},
+    setup_requires=["py2app"],
     install_requires=[
-        'rumps>=0.4.0',
-        'requests>=2.32.0',
-        'pyobjc-framework-Cocoa>=10.0',
-        'pyobjc-framework-Foundation>=10.0',
-        'pyobjc-framework-AppKit>=10.0',
-        'pyobjc-core>=10.0',
+        "rumps>=0.4.0",
+        "requests>=2.32.0",
+        "pyobjc-framework-Cocoa>=10.0",
+        "pyobjc-framework-Foundation>=10.0",
+        "pyobjc-framework-AppKit>=10.0",
+        "pyobjc-core>=10.0",
     ],
-    python_requires='>=3.9',
+    python_requires=">=3.9",
     classifiers=[
-        'Development Status :: 4 - Beta',
-        'Environment :: MacOS X :: Cocoa',
-        'Intended Audience :: System Administrators',
-        'License :: OSI Approved :: MIT License',
-        'Operating System :: MacOS :: MacOS X',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
-        'Programming Language :: Python :: 3.12',
-        'Topic :: System :: Monitoring',
-        'Topic :: System :: Networking :: Monitoring',
+        "Development Status :: 4 - Beta",
+        "Environment :: MacOS X :: Cocoa",
+        "Intended Audience :: System Administrators",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: MacOS :: MacOS X",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: System :: Monitoring",
+        "Topic :: System :: Networking :: Monitoring",
     ],
 )
 
 # Build instructions for users
-if __name__ == '__main__':
-    print("""
+if __name__ == "__main__":
+    print(
+        """
 onSite - HTTP Site Monitor Setup
 ================================
 
@@ -172,4 +174,5 @@ Dependencies included in bundle:
 - requests (HTTP client)
 - PyObjC (macOS native APIs)
 - All required Python standard library modules
-    """)
+    """
+    )

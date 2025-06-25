@@ -4,27 +4,25 @@ Native macOS Notification Center integration for HTTP Check
 Provides richer notifications with actions, sounds, and proper integration
 """
 
-import os
 import logging
+import os
 from enum import Enum
 from typing import Callable
 
 try:
     import objc
-    from Foundation import (
-        NSUserNotification, NSUserNotificationCenter,
-        NSObject
-    )
     from AppKit import NSImage, NSWorkspace
+    from Foundation import NSObject, NSUserNotification, NSUserNotificationCenter
+
     PYOBJC_AVAILABLE = True
 except ImportError:
     PYOBJC_AVAILABLE = False
-    logging.warning("PyObjC not available, falling back to basic "
-                    "notifications")
+    logging.warning("PyObjC not available, falling back to basic " "notifications")
 
 
 class NotificationSound(Enum):
     """Available notification sounds"""
+
     DEFAULT = "NSUserNotificationDefaultSoundName"
     BASSO = "Basso"
     BLOW = "Blow"
@@ -53,8 +51,7 @@ class NotificationDelegate(NSObject):
         self.callbacks = {}
         return self
 
-    def userNotificationCenter_didActivateNotification_(
-            self, center, notification):
+    def userNotificationCenter_didActivateNotification_(self, center, notification):
         """Handle notification activation (click)"""
         # pylint: disable=unused-argument,invalid-name
         identifier = notification.identifier()
@@ -63,8 +60,7 @@ class NotificationDelegate(NSObject):
             if callable(callback):
                 callback(notification)
 
-    def userNotificationCenter_shouldPresentNotification_(
-            self, center, notification):
+    def userNotificationCenter_shouldPresentNotification_(self, center, notification):
         """Always present notifications even when app is focused"""
         # pylint: disable=unused-argument,invalid-name
         return True
@@ -81,14 +77,11 @@ class MacOSNotificationManager:
         self.available = PYOBJC_AVAILABLE
         if self.available:
             try:
-                self.center = (
-                    NSUserNotificationCenter
-                    .defaultUserNotificationCenter())
+                self.center = NSUserNotificationCenter.defaultUserNotificationCenter()
                 # Skip delegate for now to simplify
                 self.delegate = None
             except Exception as exc:
-                logging.error("Failed to initialize notification center: %s",
-                              exc)
+                logging.error("Failed to initialize notification center: %s", exc)
                 self.available = False
                 self.center = None
                 self.delegate = None
@@ -107,7 +100,7 @@ class MacOSNotificationManager:
         identifier: str = None,
         callback: Callable = None,
         icon_path: str = None,
-        url: str = None
+        url: str = None,
     ) -> bool:
         """
         Send a rich notification to macOS Notification Center
@@ -144,8 +137,7 @@ class MacOSNotificationManager:
             if sound != NotificationSound.DEFAULT:
                 notification.setSoundName_(sound.value)
             else:
-                notification.setSoundName_(
-                    "NSUserNotificationDefaultSoundName")
+                notification.setSoundName_("NSUserNotificationDefaultSoundName")
 
             # Set buttons
             if action_button:
@@ -184,14 +176,16 @@ class MacOSNotificationManager:
         """Fallback to osascript if PyObjC is not available"""
         try:
             # Escape special characters properly for AppleScript
-            title = title.replace('\\', '\\\\').replace('"', '\\"')
-            message = message.replace('\\', '\\\\').replace('"', '\\"')
+            title = title.replace("\\", "\\\\").replace('"', '\\"')
+            message = message.replace("\\", "\\\\").replace('"', '\\"')
 
             # Use subprocess instead of os.system for better error handling
             script = f'display notification "{message}" with title "{title}"'
             import subprocess
-            result = subprocess.run(['osascript', '-e', script], 
-                                    capture_output=True, text=True, check=True)
+
+            result = subprocess.run(
+                ["osascript", "-e", script], capture_output=True, text=True, check=True
+            )
             return True
         except subprocess.CalledProcessError as exc:
             logging.error("AppleScript error in fallback notification: %s", exc.stderr)
@@ -200,8 +194,9 @@ class MacOSNotificationManager:
             logging.error("Error sending fallback notification: %s", exc)
             return False
 
-    def send_site_down_alert(self, site: str, status_code: int,
-                             callback: Callable = None):
+    def send_site_down_alert(
+        self, site: str, status_code: int, callback: Callable = None
+    ):
         """Send a notification for a site being down"""
         return self.send_notification(
             title="🔴 Site Down",
@@ -212,11 +207,12 @@ class MacOSNotificationManager:
             other_button="Dismiss",
             identifier=f"down_{site}",
             callback=callback,
-            url=site
+            url=site,
         )
 
-    def send_site_recovery_alert(self, site: str, status_code: int,
-                                 callback: Callable = None):
+    def send_site_recovery_alert(
+        self, site: str, status_code: int, callback: Callable = None
+    ):
         """Send a notification for a site recovering"""
         return self.send_notification(
             title="🟢 Site Recovered",
@@ -226,11 +222,12 @@ class MacOSNotificationManager:
             action_button="View",
             identifier=f"recovery_{site}",
             callback=callback,
-            url=site
+            url=site,
         )
 
-    def send_check_complete_summary(self, total: int, failed: int,
-                                    callback: Callable = None):
+    def send_check_complete_summary(
+        self, total: int, failed: int, callback: Callable = None
+    ):
         """Send a summary notification after checking all sites"""
         if failed == 0:
             title = "✅ All Sites OK"
@@ -247,7 +244,7 @@ class MacOSNotificationManager:
             sound=sound,
             action_button="View Details" if failed > 0 else None,
             identifier="check_complete",
-            callback=callback
+            callback=callback,
         )
 
     def send_error_notification(self, error_msg: str, site: str = None):
@@ -301,25 +298,18 @@ if __name__ == "__main__":
     manager.send_notification(
         title="HTTP Check Test",
         message="Testing native macOS notifications",
-        sound=NotificationSound.PING
+        sound=NotificationSound.PING,
     )
 
     # Test site down notification
     manager.send_site_down_alert(
-        site="example.com",
-        status_code=500,
-        callback=open_url_callback
+        site="example.com", status_code=500, callback=open_url_callback
     )
 
     # Test recovery notification
     manager.send_site_recovery_alert(
-        site="example.com",
-        status_code=200,
-        callback=open_url_callback
+        site="example.com", status_code=200, callback=open_url_callback
     )
 
     # Test summary notification
-    manager.send_check_complete_summary(
-        total=10,
-        failed=2
-    )
+    manager.send_check_complete_summary(total=10, failed=2)

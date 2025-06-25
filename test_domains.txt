@@ -16,7 +16,7 @@ invalid-domain
    reddit.com  # Indented with trailing comment
 
 // Mixed whitespace
-bing.com   
+bing.com
    yahoo.com
 
 // End of domains file

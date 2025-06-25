@@ -11,7 +11,7 @@ import re
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import List, Set, Optional
+from typing import List, Optional, Set
 from urllib.parse import urlparse
 
 import rumps
@@ -28,23 +28,23 @@ class HTTPCheckApp(rumps.App):
         super().__init__("onSite", title="⚡")
 
         # Initialize state
-        self.sites: List[str] = []
-        self.failed_sites: Set[str] = set()
+        self.sites: list[str] = []
+        self.failed_sites: set[str] = set()
         self.last_check_time: Optional[datetime] = None
         self.checking = False
         self.check_interval = 900  # 15 minutes default
         self.timer = None
 
         # Setup paths following macOS best practices
-        self.config_dir = Path.home() / '.httpcheck'
+        self.config_dir = Path.home() / ".httpcheck"
         self.config_dir.mkdir(exist_ok=True)
-        self.sites_file = self.config_dir / 'sites.json'
-        self.config_file = self.config_dir / 'config.json'
+        self.sites_file = self.config_dir / "sites.json"
+        self.config_file = self.config_dir / "config.json"
 
         # Setup log directory following macOS best practices
-        self.log_dir = Path.home() / 'Library' / 'Logs' / 'onSite'
+        self.log_dir = Path.home() / "Library" / "Logs" / "onSite"
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.log_file = self.log_dir / 'onsite.log'
+        self.log_file = self.log_dir / "onsite.log"
 
         # Load configuration
         self.load_config()
@@ -52,7 +52,7 @@ class HTTPCheckApp(rumps.App):
 
         # Setup logging following macOS best practices
         # Check for debug mode from config
-        self.debug_mode = getattr(self, 'debug_mode', False)
+        self.debug_mode = getattr(self, "debug_mode", False)
         self.setup_logging()
 
         # Initialize native notifications
@@ -88,18 +88,18 @@ class HTTPCheckApp(rumps.App):
             return False, "Please enter a complete URL"
 
         # Check if scheme is valid first
-        if url.startswith(('ftp://', 'file://', 'mailto:')):
+        if url.startswith(("ftp://", "file://", "mailto:")):
             return False, "URL must use http:// or https://"
 
         # Add scheme if missing
-        if not url.startswith(('http://', 'https://')):
+        if not url.startswith(("http://", "https://")):
             url = f"https://{url}"
 
         try:
             parsed = urlparse(url)
 
             # Check if scheme is valid
-            if parsed.scheme not in ('http', 'https'):
+            if parsed.scheme not in ("http", "https"):
                 return False, "URL must use http:// or https://"
 
             # Check if domain exists
@@ -108,25 +108,30 @@ class HTTPCheckApp(rumps.App):
 
             # Basic domain format validation
             domain_pattern = re.compile(
-                r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*'
-                r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
+                r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*"
+                r"[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
             )
 
             # Extract just the hostname (remove port if present)
-            hostname = parsed.netloc.split(':')[0]
+            hostname = parsed.netloc.split(":")[0]
 
             # Check for valid domain format (allow localhost)
-            if (not domain_pattern.match(hostname) and
-                    not self._is_valid_ip(hostname) and
-                    hostname.lower() != 'localhost'):
+            if (
+                not domain_pattern.match(hostname)
+                and not self._is_valid_ip(hostname)
+                and hostname.lower() != "localhost"
+            ):
                 return False, "Invalid domain name or IP address format"
 
             # Check for minimum domain requirements (allow localhost)
-            if ('.' not in hostname and
-                    not self._is_valid_ip(hostname) and
-                    hostname.lower() != 'localhost'):
-                return False, ("Domain name must contain at least one dot "
-                               "(e.g., example.com)")
+            if (
+                "." not in hostname
+                and not self._is_valid_ip(hostname)
+                and hostname.lower() != "localhost"
+            ):
+                return False, (
+                    "Domain name must contain at least one dot " "(e.g., example.com)"
+                )
 
             # Check URL length (reasonable limit)
             if len(url) > 2048:
@@ -141,6 +146,7 @@ class HTTPCheckApp(rumps.App):
         """Check if hostname is a valid IP address"""
         try:
             import ipaddress
+
             ipaddress.ip_address(hostname)
             return True
         except ValueError:
@@ -179,7 +185,7 @@ class HTTPCheckApp(rumps.App):
         try:
             # Clear any existing handlers to prevent duplicates
             logging.root.handlers = []
-            
+
             # Get log level from config or use default
             try:
                 log_level = getattr(logging, self.log_level)
@@ -199,26 +205,21 @@ class HTTPCheckApp(rumps.App):
                     self.log_file,
                     maxBytes=self.log_max_bytes,
                     backupCount=self.log_backup_count,
-                    encoding='utf-8'
+                    encoding="utf-8",
                 )
 
                 # Create formatter with configurable format
                 formatter = logging.Formatter(
-                    self.log_format,
-                    datefmt=self.log_date_format
+                    self.log_format, datefmt=self.log_date_format
                 )
                 file_handler.setFormatter(formatter)
                 handlers.append(file_handler)
 
             except ImportError:
                 # Fallback to basic file handler if RotatingFileHandler unavailable
-                file_handler = logging.FileHandler(
-                    self.log_file,
-                    encoding='utf-8'
-                )
+                file_handler = logging.FileHandler(self.log_file, encoding="utf-8")
                 formatter = logging.Formatter(
-                    self.log_format,
-                    datefmt=self.log_date_format
+                    self.log_format, datefmt=self.log_date_format
                 )
                 file_handler.setFormatter(formatter)
                 handlers.append(file_handler)
@@ -231,9 +232,7 @@ class HTTPCheckApp(rumps.App):
 
             # Configure root logger
             logging.basicConfig(
-                handlers=handlers,
-                level=log_level,
-                force=True  # Force reconfiguration
+                handlers=handlers, level=log_level, force=True  # Force reconfiguration
             )
 
             # Apply module-specific log levels
@@ -247,19 +246,19 @@ class HTTPCheckApp(rumps.App):
             # Configure specific loggers to reduce noise if needed
             if log_level > logging.DEBUG:
                 # Reduce verbosity of urllib3 and requests
-                logging.getLogger('urllib3').setLevel(logging.WARNING)
-                logging.getLogger('requests').setLevel(logging.WARNING)
+                logging.getLogger("urllib3").setLevel(logging.WARNING)
+                logging.getLogger("requests").setLevel(logging.WARNING)
 
             # Log startup messages
-            logger = logging.getLogger('onSite')
+            logger = logging.getLogger("onSite")
             logger.info("onSite started successfully")
             logger.info(f"Log level: {self.log_level}")
             logger.info(f"Log file: {self.log_file}")
             logger.info(f"Config directory: {self.config_dir}")
-            
+
             if self.log_to_console:
                 logger.debug("Console logging enabled")
-            
+
             if self.module_log_levels:
                 logger.debug(f"Module-specific log levels: {self.module_log_levels}")
 
@@ -270,7 +269,7 @@ class HTTPCheckApp(rumps.App):
                 level=logging.INFO,
                 format=self.log_format,
                 datefmt=self.log_date_format,
-                force=True
+                force=True,
             )
 
     def build_menu(self):
@@ -292,8 +291,11 @@ class HTTPCheckApp(rumps.App):
         # Quick actions
         self.menu.add(rumps.MenuItem("Check Now", callback=self.check_now))
         auto_status = "ON" if self.timer else "OFF"
-        self.menu.add(rumps.MenuItem(f"Auto-check: {auto_status}",
-                                     callback=self.toggle_auto_check))
+        self.menu.add(
+            rumps.MenuItem(
+                f"Auto-check: {auto_status}", callback=self.toggle_auto_check
+            )
+        )
         self.menu.add(rumps.separator)
 
         # Sites section
@@ -311,32 +313,39 @@ class HTTPCheckApp(rumps.App):
 
         # Configuration
         self.menu.add(rumps.MenuItem("Add Site...", callback=self.add_site))
-        self.menu.add(rumps.MenuItem("Remove Site...",
-                                     callback=self.remove_site))
-        self.menu.add(rumps.MenuItem("Edit Sites...",
-                                     callback=self.edit_sites))
+        self.menu.add(rumps.MenuItem("Remove Site...", callback=self.remove_site))
+        self.menu.add(rumps.MenuItem("Edit Sites...", callback=self.edit_sites))
         self.menu.add(rumps.separator)
 
         # Settings
         settings_menu = rumps.MenuItem("Settings")
         settings_menu.add(
-            rumps.MenuItem(f"Check interval: {self.check_interval}s",
-                           callback=self.change_interval))
-        settings_menu.add(rumps.MenuItem("Clear failed sites",
-                                         callback=self.clear_failed))
+            rumps.MenuItem(
+                f"Check interval: {self.check_interval}s", callback=self.change_interval
+            )
+        )
+        settings_menu.add(
+            rumps.MenuItem("Clear failed sites", callback=self.clear_failed)
+        )
         settings_menu.add(rumps.separator)
-        
+
         # Logging submenu
         logging_menu = rumps.MenuItem("Logging")
         logging_menu.add(
-            rumps.MenuItem(f"Level: {getattr(self, 'log_level', 'INFO')}",
-                           callback=self.change_log_level))
+            rumps.MenuItem(
+                f"Level: {getattr(self, 'log_level', 'INFO')}",
+                callback=self.change_log_level,
+            )
+        )
         logging_menu.add(
-            rumps.MenuItem(f"Console: {'✓' if getattr(self, 'log_to_console', False) else '✗'}",
-                           callback=self.toggle_console_logging))
+            rumps.MenuItem(
+                f"Console: {'✓' if getattr(self, 'log_to_console', False) else '✗'}",
+                callback=self.toggle_console_logging,
+            )
+        )
         logging_menu.add(rumps.MenuItem("View logs", callback=self.view_logs))
         settings_menu.add(logging_menu)
-        
+
         self.menu.add(settings_menu)
 
         self.menu.add(rumps.separator)
@@ -356,20 +365,26 @@ class HTTPCheckApp(rumps.App):
 
                 # Try to set red color using NSColor if available
                 try:
-                    from AppKit import (NSColor, NSAttributedString,
-                                        NSForegroundColorAttributeKey, NSFont)
+                    from AppKit import (
+                        NSAttributedString,
+                        NSColor,
+                        NSFont,
+                        NSForegroundColorAttributeKey,
+                    )
                     from Foundation import NSMutableDictionary
 
                     # Create red attributed string
                     attrs = NSMutableDictionary.alloc().init()
-                    attrs.setObject_forKey_(NSColor.redColor(),
-                                            NSForegroundColorAttributeKey)
-                    attrs.setObject_forKey_(NSFont.systemFontOfSize_(14),
-                                            "NSFont")
+                    attrs.setObject_forKey_(
+                        NSColor.redColor(), NSForegroundColorAttributeKey
+                    )
+                    attrs.setObject_forKey_(NSFont.systemFontOfSize_(14), "NSFont")
 
                     attributed_title = (
-                        NSAttributedString.alloc()
-                        .initWithString_attributes_("⚡", attrs))
+                        NSAttributedString.alloc().initWithString_attributes_(
+                            "⚡", attrs
+                        )
+                    )
                     self.title = attributed_title
                 except (ImportError, Exception):
                     # Fallback to red circle + lightning if NSColor
@@ -390,9 +405,7 @@ class HTTPCheckApp(rumps.App):
         """Manually trigger a check of all sites"""
         if self.checking:
             self.notification_manager.send_notification(
-                title="onSite",
-                message="Check in progress",
-                subtitle="Please wait..."
+                title="onSite", message="Check in progress", subtitle="Please wait..."
             )
             return
 
@@ -400,7 +413,7 @@ class HTTPCheckApp(rumps.App):
             self.notification_manager.send_notification(
                 title="onSite",
                 message="No sites configured",
-                subtitle="Add sites to monitor first"
+                subtitle="Add sites to monitor first",
             )
             return
 
@@ -435,15 +448,16 @@ class HTTPCheckApp(rumps.App):
 
                     if status_code not in range(200, 400):
                         self.failed_sites.add(site)
-                        logging.getLogger('onSite').warning("Site failed: %s - Status: %s",
-                                        site, result.status)
+                        logging.getLogger("onSite").warning(
+                            "Site failed: %s - Status: %s", site, result.status
+                        )
 
                         # Send notification for newly failed sites
                         if site not in old_failed:
                             self.notification_manager.send_site_down_alert(
                                 site=site,
                                 status_code=status_code,
-                                callback=self.handle_notification_click
+                                callback=self.handle_notification_click,
                             )
                     else:
                         # Site recovered
@@ -451,29 +465,34 @@ class HTTPCheckApp(rumps.App):
                             self.notification_manager.send_site_recovery_alert(
                                 site=site,
                                 status_code=status_code,
-                                callback=self.handle_notification_click
+                                callback=self.handle_notification_click,
                             )
 
                 except Exception as exc:
                     self.failed_sites.add(site)
-                    logging.getLogger('onSite').error("Error checking %s: %s", site, str(exc))
+                    logging.getLogger("onSite").error(
+                        "Error checking %s: %s", site, str(exc)
+                    )
 
                     if site not in old_failed:
                         self.notification_manager.send_error_notification(
                             # Truncate long error messages
                             error_msg=str(exc)[:100],
-                            site=site
+                            site=site,
                         )
 
             self.last_check_time = datetime.now()
-            logging.getLogger('onSite').info("Check completed: %s/%s sites failed",
-                         len(self.failed_sites), total_sites)
+            logging.getLogger("onSite").info(
+                "Check completed: %s/%s sites failed",
+                len(self.failed_sites),
+                total_sites,
+            )
 
             # Send summary notification
             self.notification_manager.send_check_complete_summary(
                 total=total_sites,
                 failed=len(self.failed_sites),
-                callback=self.handle_notification_click
+                callback=self.handle_notification_click,
             )
 
         finally:
@@ -485,10 +504,11 @@ class HTTPCheckApp(rumps.App):
         """Handle clicks on notifications"""
         try:
             from AppKit import NSWorkspace
+
             user_info = notification.userInfo()
             if user_info and "url" in user_info:
                 url = user_info["url"]
-                if not url.startswith(('http://', 'https://')):
+                if not url.startswith(("http://", "https://")):
                     url = f"https://{url}"
                 workspace = NSWorkspace.sharedWorkspace()
                 workspace.openURL_(url)
@@ -508,7 +528,7 @@ class HTTPCheckApp(rumps.App):
             timeout=10.0,
             retries=2,
             follow_redirects="always",
-            max_redirects=10
+            max_redirects=10,
         )
 
     @rumps.clicked("Auto-check")
@@ -518,12 +538,13 @@ class HTTPCheckApp(rumps.App):
             self.timer.stop()
             self.timer = None
             sender.title = "Auto-check: OFF"
-            logging.getLogger('onSite').info("Auto-check disabled")
+            logging.getLogger("onSite").info("Auto-check disabled")
         else:
             self.start_background_checking()
             sender.title = "Auto-check: ON"
-            logging.getLogger('onSite').info("Auto-check enabled with %ss interval",
-                         self.check_interval)
+            logging.getLogger("onSite").info(
+                "Auto-check enabled with %ss interval", self.check_interval
+            )
 
     def start_background_checking(self):
         """Start the background checking timer"""
@@ -535,19 +556,23 @@ class HTTPCheckApp(rumps.App):
     def add_site(self, _):
         """Add a new site to monitor with input validation"""
         # Use a more reliable input method
-        script = '''tell application "System Events"
+        script = """tell application "System Events"
     activate
     set userInput to text returned of (display dialog "Enter URL to monitor:" default answer "https://" with title "Add Site - onSite")
 end tell
-return userInput'''
+return userInput"""
 
         try:
             import subprocess
-            logging.getLogger('onSite').debug(f"Executing AppleScript: {script[:100]}...")
-            result = subprocess.run(['osascript', '-e', script],
-                                    capture_output=True, text=True, check=True)
+
+            logging.getLogger("onSite").debug(
+                f"Executing AppleScript: {script[:100]}..."
+            )
+            result = subprocess.run(
+                ["osascript", "-e", script], capture_output=True, text=True, check=True
+            )
             url = result.stdout.strip()
-            logging.getLogger('onSite').debug(f"AppleScript result: {url}")
+            logging.getLogger("onSite").debug(f"AppleScript result: {url}")
 
             # Validate and add the site
             success, message = self.validate_and_add_site(url)
@@ -557,13 +582,13 @@ return userInput'''
 
                 self.sites.append(normalized_url)
                 self.save_sites()
-                logging.getLogger('onSite').info(f"Added site: {normalized_url}")
+                logging.getLogger("onSite").info(f"Added site: {normalized_url}")
 
                 # Immediately check the new site
                 self.notification_manager.send_notification(
                     title="onSite",
                     message=f"Site added: {normalized_url}"[:75],
-                    subtitle="Checking status..."
+                    subtitle="Checking status...",
                 )
 
                 # Check the new site in background
@@ -579,15 +604,16 @@ return userInput'''
                             self.failed_sites.add(normalized_url)
                             self.notification_manager.send_notification(
                                 title="⚠️ New Site Issue",
-                                message=(f"{normalized_url} is not "
-                                         "responding properly"),
-                                subtitle=f"Status: {result.status}"
+                                message=(
+                                    f"{normalized_url} is not " "responding properly"
+                                ),
+                                subtitle=f"Status: {result.status}",
                             )
                         else:
                             self.notification_manager.send_notification(
                                 title="✅ New Site OK",
                                 message=f"{normalized_url} is responding",
-                                subtitle=f"Status: {result.status}"
+                                subtitle=f"Status: {result.status}",
                             )
 
                         self.update_status_icon()
@@ -595,12 +621,13 @@ return userInput'''
 
                     except Exception as exc:
                         self.failed_sites.add(normalized_url)
-                        logging.getLogger('onSite').error(
-                            f"Error checking new site {normalized_url}: {exc}")
+                        logging.getLogger("onSite").error(
+                            f"Error checking new site {normalized_url}: {exc}"
+                        )
                         self.notification_manager.send_notification(
                             title="❌ New Site Error",
                             message=f"Failed to check {normalized_url}",
-                            subtitle=str(exc)[:50]
+                            subtitle=str(exc)[:50],
                         )
                         self.update_status_icon()
                         self.build_menu()
@@ -616,14 +643,19 @@ return userInput'''
                     self.start_background_checking()
             else:
                 # Show validation error
-                escaped_message = message.replace('"', '\\"').replace('\n', '\\n').replace('\\', '\\\\')
-                error_script = f'''tell application "System Events"
+                escaped_message = (
+                    message.replace('"', '\\"')
+                    .replace("\n", "\\n")
+                    .replace("\\", "\\\\")
+                )
+                error_script = f"""tell application "System Events"
     activate
     display dialog "Invalid URL: {escaped_message}" with title "Add Site Error - onSite" buttons {{"OK"}} default button "OK" with icon caution
-end tell'''
-                subprocess.run(['osascript', '-e', error_script], check=False)
-                logging.getLogger('onSite').warning(
-                    f"Failed to add site - validation error: {message}")
+end tell"""
+                subprocess.run(["osascript", "-e", error_script], check=False)
+                logging.getLogger("onSite").warning(
+                    f"Failed to add site - validation error: {message}"
+                )
 
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to rumps dialog if AppleScript fails
@@ -632,7 +664,7 @@ end tell'''
                 message="Enter URL to monitor:",
                 default_text="https://",
                 ok="Add",
-                cancel="Cancel"
+                cancel="Cancel",
             ).run()
 
             if response.clicked and response.text:
@@ -647,13 +679,13 @@ end tell'''
 
                     self.sites.append(normalized_url)
                     self.save_sites()
-                    logging.getLogger('onSite').info("Added site: %s", normalized_url)
+                    logging.getLogger("onSite").info("Added site: %s", normalized_url)
 
                     # Immediately check the new site
                     self.notification_manager.send_notification(
                         title="onSite",
                         message=f"Site added: {normalized_url}"[:75],
-                        subtitle="Checking status..."
+                        subtitle="Checking status...",
                     )
 
                     # Check the new site in background
@@ -671,14 +703,15 @@ end tell'''
                                     title="⚠️ New Site Issue",
                                     message=(
                                         f"{normalized_url} is not "
-                                        "responding properly"),
-                                    subtitle=f"Status: {result.status}"
+                                        "responding properly"
+                                    ),
+                                    subtitle=f"Status: {result.status}",
                                 )
                             else:
                                 self.notification_manager.send_notification(
                                     title="✅ New Site OK",
                                     message=f"{normalized_url} is responding",
-                                    subtitle=f"Status: {result.status}"
+                                    subtitle=f"Status: {result.status}",
                                 )
 
                             self.update_status_icon()
@@ -686,13 +719,13 @@ end tell'''
 
                         except Exception as exc:
                             self.failed_sites.add(normalized_url)
-                            logging.getLogger('onSite').error(
-                                f"Error checking new site "
-                                f"{normalized_url}: {exc}")
+                            logging.getLogger("onSite").error(
+                                f"Error checking new site " f"{normalized_url}: {exc}"
+                            )
                             self.notification_manager.send_notification(
                                 title="❌ New Site Error",
                                 message=f"Failed to check {normalized_url}",
-                                subtitle=str(exc)[:50]
+                                subtitle=str(exc)[:50],
                             )
                             self.update_status_icon()
                             self.build_menu()
@@ -711,30 +744,32 @@ end tell'''
                     self.notification_manager.send_notification(
                         title="❌ Invalid URL",
                         message=message,
-                        subtitle="Please check the URL format and try again"
+                        subtitle="Please check the URL format and try again",
                     )
-                    logging.getLogger('onSite').warning(
-                        f"Failed to add site - validation error: {message}")
+                    logging.getLogger("onSite").warning(
+                        f"Failed to add site - validation error: {message}"
+                    )
 
     @rumps.clicked("Remove Site...")
     def remove_site(self, _):
         """Remove a site from monitoring"""
         if not self.sites:
             self.notification_manager.send_notification(
-                title="onSite",
-                message="No sites to remove"
+                title="onSite", message="No sites to remove"
             )
             return
 
         # Create a simple picker using AppleScript
         # Escape any quotes in site URLs for AppleScript
-        escaped_sites = [site.replace('"', '\\"').replace('\\', '\\\\') for site in self.sites]
-        
+        escaped_sites = [
+            site.replace('"', '\\"').replace("\\", "\\\\") for site in self.sites
+        ]
+
         if not escaped_sites:
             return
-            
+
         sites_list = '", "'.join(escaped_sites)
-        script = f'''tell application "System Events"
+        script = f"""tell application "System Events"
     activate
     set sitesList to {{"{sites_list}"}}
     set selectedSite to choose from list sitesList with title "Remove Site" with prompt "Select site to remove:"
@@ -743,12 +778,14 @@ end tell'''
     else
         return ""
     end if
-end tell'''
+end tell"""
 
         try:
             import subprocess
-            result = subprocess.run(['osascript', '-e', script],
-                                    capture_output=True, text=True, check=True)
+
+            result = subprocess.run(
+                ["osascript", "-e", script], capture_output=True, text=True, check=True
+            )
             selected = result.stdout.strip()
 
             if selected and selected in self.sites:
@@ -758,19 +795,19 @@ end tell'''
                 self.build_menu()
                 self.update_status_icon()
                 self.notification_manager.send_notification(
-                    title="onSite",
-                    message=f"Site removed: {selected}"
+                    title="onSite", message=f"Site removed: {selected}"
                 )
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to simple numbering system
             sites_text = "\n".join(
-                f"{i+1}. {site}" for i, site in enumerate(self.sites))
+                f"{i+1}. {site}" for i, site in enumerate(self.sites)
+            )
             response = rumps.Window(
                 title="Remove Site",
                 message=f"Enter number of site to remove:\n\n{sites_text}",
                 default_text="1",
                 ok="Remove",
-                cancel="Cancel"
+                cancel="Cancel",
             ).run()
 
             if response.clicked and response.text:
@@ -783,13 +820,11 @@ end tell'''
                         self.build_menu()
                         self.update_status_icon()
                         self.notification_manager.send_notification(
-                            title="onSite",
-                            message=f"Site removed: {removed_site}"
+                            title="onSite", message=f"Site removed: {removed_site}"
                         )
                 except (ValueError, IndexError):
                     self.notification_manager.send_notification(
-                        title="onSite",
-                        message="Invalid selection"
+                        title="onSite", message="Invalid selection"
                     )
 
     @rumps.clicked("Edit Sites...")
@@ -798,31 +833,31 @@ end tell'''
         # Create a backup before editing
         try:
             import shutil
-            backup_file = self.config_dir / 'sites_backup.json'
+
+            backup_file = self.config_dir / "sites_backup.json"
             shutil.copy2(self.sites_file, backup_file)
-            logging.getLogger('onSite').info(f"Created backup: {backup_file}")
+            logging.getLogger("onSite").info(f"Created backup: {backup_file}")
         except Exception as exc:
-            logging.getLogger('onSite').warning(f"Could not create backup: {exc}")
+            logging.getLogger("onSite").warning(f"Could not create backup: {exc}")
 
         os.system(f"open -t {self.sites_file}")
 
         # Show validation instructions
-        instruction_script = '''tell application "System Events"
+        instruction_script = """tell application "System Events"
     activate
     display dialog "Edit Sites Instructions:\\n\\n- Each URL should be a complete HTTP/HTTPS address\\n- Example: https://example.com\\n- Save the file when done\\n- The app will validate URLs when reloaded\\n\\nBackup created: sites_backup.json" with title "Edit Sites - onSite" buttons {"OK"} default button "OK" with icon note
-end tell'''
+end tell"""
 
         try:
             import subprocess
-            subprocess.run(['osascript', '-e', instruction_script],
-                           check=False)
+
+            subprocess.run(["osascript", "-e", instruction_script], check=False)
         except Exception:
             # Fallback to notification
             self.notification_manager.send_notification(
                 title="onSite",
                 message="Edit sites file",
-                subtitle=("Save file when done. Backup created: "
-                          "sites_backup.json")
+                subtitle=("Save file when done. Backup created: " "sites_backup.json"),
             )
 
     @rumps.clicked("Check interval")
@@ -833,7 +868,7 @@ end tell'''
             message="Enter check interval in seconds:",
             default_text=str(self.check_interval),
             ok="Set",
-            cancel="Cancel"
+            cancel="Cancel",
         ).run()
 
         if response.clicked and response.text:
@@ -852,19 +887,19 @@ end tell'''
                     self.notification_manager.send_notification(
                         title="onSite",
                         message="Interval updated",
-                        subtitle=f"Now checking every {interval} seconds"
+                        subtitle=f"Now checking every {interval} seconds",
                     )
                 else:
                     self.notification_manager.send_notification(
                         title="onSite",
                         message="Invalid interval",
-                        subtitle="Minimum interval is 60 seconds"
+                        subtitle="Minimum interval is 60 seconds",
                     )
             except ValueError:
                 self.notification_manager.send_notification(
                     title="onSite",
                     message="Invalid input",
-                    subtitle="Please enter a number"
+                    subtitle="Please enter a number",
                 )
 
     @rumps.clicked("Clear failed sites")
@@ -874,19 +909,18 @@ end tell'''
         self.update_status_icon()
         self.build_menu()
         self.notification_manager.send_notification(
-            title="onSite",
-            message="Failed sites list cleared"
+            title="onSite", message="Failed sites list cleared"
         )
 
     @rumps.clicked("Log Level")
     def change_log_level(self, _):
         """Change the logging level"""
-        levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-        current_level = getattr(self, 'log_level', 'INFO')
-        
+        levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        current_level = getattr(self, "log_level", "INFO")
+
         # Use AppleScript to create a list picker
         escaped_levels = '", "'.join(levels)
-        script = f'''tell application "System Events"
+        script = f"""tell application "System Events"
     activate
     set levelsList to {{"{escaped_levels}"}}
     set selectedLevel to choose from list levelsList with title "Change Log Level" with prompt "Select logging level:" default items {{"{current_level}"}}
@@ -895,42 +929,45 @@ end tell'''
     else
         return ""
     end if
-end tell'''
-        
+end tell"""
+
         try:
             import subprocess
-            result = subprocess.run(['osascript', '-e', script],
-                                    capture_output=True, text=True, check=True)
+
+            result = subprocess.run(
+                ["osascript", "-e", script], capture_output=True, text=True, check=True
+            )
             selected = result.stdout.strip()
-            
+
             if selected and selected in levels:
                 self.log_level = selected
-                
+
                 # Apply new log level immediately
                 try:
                     new_level = getattr(logging, selected)
                     logging.getLogger().setLevel(new_level)
-                    
+
                     # Update specific loggers
                     if new_level > logging.DEBUG:
-                        logging.getLogger('urllib3').setLevel(logging.WARNING)
-                        logging.getLogger('requests').setLevel(logging.WARNING)
+                        logging.getLogger("urllib3").setLevel(logging.WARNING)
+                        logging.getLogger("requests").setLevel(logging.WARNING)
                     else:
-                        logging.getLogger('urllib3').setLevel(new_level)
-                        logging.getLogger('requests').setLevel(new_level)
-                    
+                        logging.getLogger("urllib3").setLevel(new_level)
+                        logging.getLogger("requests").setLevel(new_level)
+
                     self.save_config()
                     self.build_menu()
-                    
+
                     self.notification_manager.send_notification(
-                        title="onSite",
-                        message=f"Log level changed to {selected}"
+                        title="onSite", message=f"Log level changed to {selected}"
                     )
-                    logging.getLogger('onSite').info(f"Log level changed to {selected}")
-                    
+                    logging.getLogger("onSite").info(f"Log level changed to {selected}")
+
                 except Exception as exc:
-                    logging.getLogger('onSite').error(f"Error changing log level: {exc}")
-                    
+                    logging.getLogger("onSite").error(
+                        f"Error changing log level: {exc}"
+                    )
+
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to simple dialog
             response = rumps.Window(
@@ -938,35 +975,33 @@ end tell'''
                 message=f"Current level: {current_level}\nEnter new level (DEBUG, INFO, WARNING, ERROR, CRITICAL):",
                 default_text=current_level,
                 ok="Set",
-                cancel="Cancel"
+                cancel="Cancel",
             ).run()
-            
+
             if response.clicked and response.text.upper() in levels:
                 self.log_level = response.text.upper()
                 self.save_config()
                 self.build_menu()
                 self.notification_manager.send_notification(
-                    title="onSite",
-                    message=f"Log level changed to {self.log_level}"
+                    title="onSite", message=f"Log level changed to {self.log_level}"
                 )
 
     @rumps.clicked("Console")
     def toggle_console_logging(self, sender):
         """Toggle console logging on/off"""
-        self.log_to_console = not getattr(self, 'log_to_console', False)
-        
+        self.log_to_console = not getattr(self, "log_to_console", False)
+
         # Restart logging to apply changes
         self.setup_logging()
-        
+
         self.save_config()
         self.build_menu()
-        
+
         status = "enabled" if self.log_to_console else "disabled"
         self.notification_manager.send_notification(
-            title="onSite",
-            message=f"Console logging {status}"
+            title="onSite", message=f"Console logging {status}"
         )
-        logging.getLogger('onSite').info(f"Console logging {status}")
+        logging.getLogger("onSite").info(f"Console logging {status}")
 
     @rumps.clicked("View logs")
     def view_logs(self, _):
@@ -974,37 +1009,40 @@ end tell'''
         try:
             # First try to open in Console.app (macOS system log viewer)
             import subprocess
+
             result = subprocess.run(
-                ['open', '-a', 'Console', str(self.log_file)],
-                capture_output=True, text=True)
+                ["open", "-a", "Console", str(self.log_file)],
+                capture_output=True,
+                text=True,
+            )
             if result.returncode == 0:
                 self.notification_manager.send_notification(
                     title="onSite",
                     message="Log file opened in Console.app",
-                    subtitle=f"File: {self.log_file.name}"
+                    subtitle=f"File: {self.log_file.name}",
                 )
             else:
                 # Fallback to default text editor
-                subprocess.run(['open', '-t', str(self.log_file)], check=True)
+                subprocess.run(["open", "-t", str(self.log_file)], check=True)
                 self.notification_manager.send_notification(
                     title="onSite",
                     message="Log file opened in text editor",
-                    subtitle=f"File: {self.log_file.name}"
+                    subtitle=f"File: {self.log_file.name}",
                 )
         except Exception:
             # Final fallback - reveal in Finder
             try:
-                subprocess.run(['open', '-R', str(self.log_file)], check=True)
+                subprocess.run(["open", "-R", str(self.log_file)], check=True)
                 self.notification_manager.send_notification(
                     title="onSite",
                     message="Log file revealed in Finder",
-                    subtitle=f"Location: {self.log_dir}"
+                    subtitle=f"Location: {self.log_dir}",
                 )
             except Exception:
                 self.notification_manager.send_notification(
                     title="onSite",
                     message="Could not open log file",
-                    subtitle=f"Check: {self.log_file}"
+                    subtitle=f"Check: {self.log_file}",
                 )
 
     @rumps.clicked("About")
@@ -1027,29 +1065,33 @@ Copyright © June 2025. All rights reserved.
 Built with Python, rumps, and PyObjC for macOS integration."""
 
             # Use AppleScript to show a proper dialog
-            escaped_about = about_text.replace('"', '\\"').replace('\n', '\\n').replace('\\', '\\\\')
-            script = f'''tell application "System Events"
+            escaped_about = (
+                about_text.replace('"', '\\"')
+                .replace("\n", "\\n")
+                .replace("\\", "\\\\")
+            )
+            script = f"""tell application "System Events"
     activate
     display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK" with icon note
-end tell'''
+end tell"""
 
-            subprocess.run(['osascript', '-e', script], check=False)
+            subprocess.run(["osascript", "-e", script], check=False)
 
         except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to notification if AppleScript fails
             self.notification_manager.send_notification(
                 title="onSite",
                 message="Version 1.0",
-                subtitle="Created by Thomas Juul Dyhr © June 2025"
+                subtitle="Created by Thomas Juul Dyhr © June 2025",
             )
 
     def load_sites(self):
         """Load sites from configuration file with validation"""
         if self.sites_file.exists():
             try:
-                with open(self.sites_file, 'r', encoding='utf-8') as file:
+                with open(self.sites_file, encoding="utf-8") as file:
                     data = json.load(file)
-                    raw_sites = data.get('sites', [])
+                    raw_sites = data.get("sites", [])
 
                     # Validate and normalize each site
                     validated_sites = []
@@ -1066,15 +1108,17 @@ end tell'''
                                 invalid_sites.append(f"{site} - {result}")
                         else:
                             invalid_sites.append(
-                                f"{site} - Invalid format (not a string)")
+                                f"{site} - Invalid format (not a string)"
+                            )
 
                     self.sites = validated_sites
 
                     if invalid_sites:
-                        logging.getLogger('onSite').warning("Found %d invalid sites in config:",
-                                        len(invalid_sites))
+                        logging.getLogger("onSite").warning(
+                            "Found %d invalid sites in config:", len(invalid_sites)
+                        )
                         for invalid in invalid_sites:
-                            logging.getLogger('onSite').warning("  - %s", invalid)
+                            logging.getLogger("onSite").warning("  - %s", invalid)
 
                         # Show notification about invalid sites
                         # Show notification about invalid sites
@@ -1087,19 +1131,21 @@ end tell'''
 
                         self.notification_manager.send_notification(
                             title="⚠️ Invalid Sites Found",
-                            message=(f"Removed {len(invalid_sites)} "
-                                     "invalid sites"),
-                            subtitle="Check logs for details"
+                            message=(f"Removed {len(invalid_sites)} " "invalid sites"),
+                            subtitle="Check logs for details",
                         )
 
                         # Save the cleaned sites list
                         self.save_sites()
 
-                    logging.getLogger('onSite').info("Loaded %d valid sites (removed %d invalid)",
-                                 len(validated_sites), len(invalid_sites))
+                    logging.getLogger("onSite").info(
+                        "Loaded %d valid sites (removed %d invalid)",
+                        len(validated_sites),
+                        len(invalid_sites),
+                    )
 
             except Exception as exc:
-                logging.getLogger('onSite').error("Error loading sites: %s", exc)
+                logging.getLogger("onSite").error("Error loading sites: %s", exc)
                 self.sites = []
         else:
             # Create default sites file
@@ -1109,61 +1155,65 @@ end tell'''
     def save_sites(self):
         """Save sites to configuration file"""
         try:
-            with open(self.sites_file, 'w', encoding='utf-8') as file:
-                json.dump({'sites': self.sites}, file, indent=2)
-            logging.getLogger('onSite').info("Saved %s sites", len(self.sites))
+            with open(self.sites_file, "w", encoding="utf-8") as file:
+                json.dump({"sites": self.sites}, file, indent=2)
+            logging.getLogger("onSite").info("Saved %s sites", len(self.sites))
         except Exception as exc:
-            logging.getLogger('onSite').error("Error saving sites: %s", exc)
+            logging.getLogger("onSite").error("Error saving sites: %s", exc)
 
     def load_config(self):
         """Load application configuration"""
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r', encoding='utf-8') as file:
+                with open(self.config_file, encoding="utf-8") as file:
                     config = json.load(file)
-                    self.check_interval = config.get('check_interval', 900)
-                    
+                    self.check_interval = config.get("check_interval", 900)
+
                     # Load logging configuration with defaults
-                    logging_config = config.get('logging', {})
-                    
+                    logging_config = config.get("logging", {})
+
                     # Basic logging settings
-                    self.log_level = logging_config.get('level', 'INFO').upper()
-                    self.log_to_console = logging_config.get('console', False)
-                    self.log_format = logging_config.get('format', 
-                        '%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-                    self.log_date_format = logging_config.get('date_format', 
-                        '%Y-%m-%d %H:%M:%S')
-                    
+                    self.log_level = logging_config.get("level", "INFO").upper()
+                    self.log_to_console = logging_config.get("console", False)
+                    self.log_format = logging_config.get(
+                        "format", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+                    )
+                    self.log_date_format = logging_config.get(
+                        "date_format", "%Y-%m-%d %H:%M:%S"
+                    )
+
                     # Log rotation settings
-                    rotation_config = logging_config.get('rotation', {})
-                    self.log_max_bytes = rotation_config.get('max_bytes', 5 * 1024 * 1024)  # 5MB
-                    self.log_backup_count = rotation_config.get('backup_count', 5)
-                    
+                    rotation_config = logging_config.get("rotation", {})
+                    self.log_max_bytes = rotation_config.get(
+                        "max_bytes", 5 * 1024 * 1024
+                    )  # 5MB
+                    self.log_backup_count = rotation_config.get("backup_count", 5)
+
                     # Module-specific log levels
-                    self.module_log_levels = logging_config.get('module_levels', {})
-                    
+                    self.module_log_levels = logging_config.get("module_levels", {})
+
                     # Legacy debug_mode support
-                    self.debug_mode = config.get('debug_mode', False)
-                    if self.debug_mode and not hasattr(self, 'log_level'):
-                        self.log_level = 'DEBUG'
-                        
+                    self.debug_mode = config.get("debug_mode", False)
+                    if self.debug_mode and not hasattr(self, "log_level"):
+                        self.log_level = "DEBUG"
+
             except Exception as exc:
                 # Use print before logging is setup
                 print(f"Error loading config: {exc}")
                 # Set defaults on error
-                self.log_level = 'INFO'
+                self.log_level = "INFO"
                 self.log_to_console = False
-                self.log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-                self.log_date_format = '%Y-%m-%d %H:%M:%S'
+                self.log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+                self.log_date_format = "%Y-%m-%d %H:%M:%S"
                 self.log_max_bytes = 5 * 1024 * 1024
                 self.log_backup_count = 5
                 self.module_log_levels = {}
         else:
             # Set defaults if no config file
-            self.log_level = 'INFO'
+            self.log_level = "INFO"
             self.log_to_console = False
-            self.log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-            self.log_date_format = '%Y-%m-%d %H:%M:%S'
+            self.log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+            self.log_date_format = "%Y-%m-%d %H:%M:%S"
             self.log_max_bytes = 5 * 1024 * 1024
             self.log_backup_count = 5
             self.module_log_levels = {}
@@ -1173,36 +1223,42 @@ end tell'''
         try:
             # Build config dictionary
             config = {
-                'check_interval': self.check_interval,
-                'logging': {
-                    'level': getattr(self, 'log_level', 'INFO'),
-                    'console': getattr(self, 'log_to_console', False),
-                    'format': getattr(self, 'log_format', 
-                        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'),
-                    'date_format': getattr(self, 'log_date_format', '%Y-%m-%d %H:%M:%S'),
-                    'rotation': {
-                        'max_bytes': getattr(self, 'log_max_bytes', 5 * 1024 * 1024),
-                        'backup_count': getattr(self, 'log_backup_count', 5)
+                "check_interval": self.check_interval,
+                "logging": {
+                    "level": getattr(self, "log_level", "INFO"),
+                    "console": getattr(self, "log_to_console", False),
+                    "format": getattr(
+                        self,
+                        "log_format",
+                        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                    ),
+                    "date_format": getattr(
+                        self, "log_date_format", "%Y-%m-%d %H:%M:%S"
+                    ),
+                    "rotation": {
+                        "max_bytes": getattr(self, "log_max_bytes", 5 * 1024 * 1024),
+                        "backup_count": getattr(self, "log_backup_count", 5),
                     },
-                    'module_levels': getattr(self, 'module_log_levels', {})
-                }
+                    "module_levels": getattr(self, "module_log_levels", {}),
+                },
             }
-            
+
             # Keep legacy debug_mode for backward compatibility
-            if hasattr(self, 'debug_mode'):
-                config['debug_mode'] = self.debug_mode
-            
-            with open(self.config_file, 'w', encoding='utf-8') as file:
+            if hasattr(self, "debug_mode"):
+                config["debug_mode"] = self.debug_mode
+
+            with open(self.config_file, "w", encoding="utf-8") as file:
                 json.dump(config, file, indent=2)
-                
-            logging.getLogger('onSite').debug("Configuration saved")
+
+            logging.getLogger("onSite").debug("Configuration saved")
         except Exception as exc:
-            logging.getLogger('onSite').error("Error saving config: %s", exc)
+            logging.getLogger("onSite").error("Error saving config: %s", exc)
 
 
 if __name__ == "__main__":
     # Check if running on macOS
     import platform
+
     if platform.system() != "Darwin":
         print("This menu bar app is only supported on macOS")
         exit(1)
