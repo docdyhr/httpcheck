@@ -492,19 +492,19 @@ class HTTPCheckApp(rumps.App):
     def add_site(self, _):
         """Add a new site to monitor with input validation"""
         # Use a more reliable input method
-        script = '''
-        tell application "System Events"
-            activate
-            set userInput to text returned of (display dialog "Enter URL to monitor:" default answer "https://" with title "Add Site - onSite")
-        end tell
-        return userInput
-        '''
+        script = '''tell application "System Events"
+    activate
+    set userInput to text returned of (display dialog "Enter URL to monitor:" default answer "https://" with title "Add Site - onSite")
+end tell
+return userInput'''
 
         try:
             import subprocess
+            logging.debug(f"Executing AppleScript: {script[:100]}...")
             result = subprocess.run(['osascript', '-e', script],
                                     capture_output=True, text=True, check=True)
             url = result.stdout.strip()
+            logging.debug(f"AppleScript result: {url}")
 
             # Validate and add the site
             success, message = self.validate_and_add_site(url)
@@ -573,13 +573,11 @@ class HTTPCheckApp(rumps.App):
                     self.start_background_checking()
             else:
                 # Show validation error
-                escaped_message = message.replace('"', '\\"').replace('\n', '\\n')
-                error_script = f'''
-                tell application "System Events"
-                    activate
-                    display dialog "Invalid URL: {escaped_message}" with title "Add Site Error - onSite" buttons {{"OK"}} default button "OK" with icon caution
-                end tell
-                '''
+                escaped_message = message.replace('"', '\\"').replace('\n', '\\n').replace('\\', '\\\\')
+                error_script = f'''tell application "System Events"
+    activate
+    display dialog "Invalid URL: {escaped_message}" with title "Add Site Error - onSite" buttons {{"OK"}} default button "OK" with icon caution
+end tell'''
                 subprocess.run(['osascript', '-e', error_script], check=False)
                 logging.warning(
                     f"Failed to add site - validation error: {message}")
@@ -687,20 +685,22 @@ class HTTPCheckApp(rumps.App):
 
         # Create a simple picker using AppleScript
         # Escape any quotes in site URLs for AppleScript
-        escaped_sites = [site.replace('"', '\\"') for site in self.sites]
+        escaped_sites = [site.replace('"', '\\"').replace('\\', '\\\\') for site in self.sites]
+        
+        if not escaped_sites:
+            return
+            
         sites_list = '", "'.join(escaped_sites)
-        script = f'''
-        tell application "System Events"
-            activate
-            set sitesList to {{"{sites_list}"}}
-            set selectedSite to choose from list sitesList with title "Remove Site" with prompt "Select site to remove:"
-            if selectedSite is not false then
-                return selectedSite as string
-            else
-                return ""
-            end if
-        end tell
-        '''
+        script = f'''tell application "System Events"
+    activate
+    set sitesList to {{"{sites_list}"}}
+    set selectedSite to choose from list sitesList with title "Remove Site" with prompt "Select site to remove:"
+    if selectedSite is not false then
+        return selectedSite as string
+    else
+        return ""
+    end if
+end tell'''
 
         try:
             import subprocess
@@ -764,12 +764,10 @@ class HTTPCheckApp(rumps.App):
         os.system(f"open -t {self.sites_file}")
 
         # Show validation instructions
-        instruction_script = '''
-        tell application "System Events"
-            activate
-            display dialog "Edit Sites Instructions:\\n\\n- Each URL should be a complete HTTP/HTTPS address\\n- Example: https://example.com\\n- Save the file when done\\n- The app will validate URLs when reloaded\\n\\nBackup created: sites_backup.json" with title "Edit Sites - onSite" buttons {"OK"} default button "OK" with icon note
-        end tell
-        '''
+        instruction_script = '''tell application "System Events"
+    activate
+    display dialog "Edit Sites Instructions:\\n\\n- Each URL should be a complete HTTP/HTTPS address\\n- Example: https://example.com\\n- Save the file when done\\n- The app will validate URLs when reloaded\\n\\nBackup created: sites_backup.json" with title "Edit Sites - onSite" buttons {"OK"} default button "OK" with icon note
+end tell'''
 
         try:
             import subprocess
@@ -896,13 +894,11 @@ Copyright © June 2025. All rights reserved.
 Built with Python, rumps, and PyObjC for macOS integration."""
 
             # Use AppleScript to show a proper dialog
-            escaped_about = about_text.replace('"', '\\"').replace('\n', '\\n')
-            script = f'''
-            tell application "System Events"
-                activate
-                display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK" with icon note
-            end tell
-            '''
+            escaped_about = about_text.replace('"', '\\"').replace('\n', '\\n').replace('\\', '\\\\')
+            script = f'''tell application "System Events"
+    activate
+    display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK" with icon note
+end tell'''
 
             subprocess.run(['osascript', '-e', script], check=False)
 

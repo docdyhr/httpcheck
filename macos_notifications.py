@@ -183,14 +183,19 @@ class MacOSNotificationManager:
     def _fallback_notification(self, title: str, message: str) -> bool:
         """Fallback to osascript if PyObjC is not available"""
         try:
-            # Escape quotes in title and message
-            title = title.replace('"', '\\"')
-            message = message.replace('"', '\\"')
+            # Escape special characters properly for AppleScript
+            title = title.replace('\\', '\\\\').replace('"', '\\"')
+            message = message.replace('\\', '\\\\').replace('"', '\\"')
 
-            cmd = (f'osascript -e \'display notification "{message}" '
-                   f'with title "{title}\'')
-            os.system(cmd)
+            # Use subprocess instead of os.system for better error handling
+            script = f'display notification "{message}" with title "{title}"'
+            import subprocess
+            result = subprocess.run(['osascript', '-e', script], 
+                                    capture_output=True, text=True, check=True)
             return True
+        except subprocess.CalledProcessError as exc:
+            logging.error("AppleScript error in fallback notification: %s", exc.stderr)
+            return False
         except Exception as exc:
             logging.error("Error sending fallback notification: %s", exc)
             return False

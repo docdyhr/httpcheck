@@ -596,11 +596,15 @@ def notify(title, message, failed_sites=None):
                 else:
                     notification_message = f"{len(failed_sites)} sites failed. See terminal for details."
 
-            # Construct the AppleScript command
+            # Construct the AppleScript command with proper escaping
+            escaped_message = notification_message.replace('"', '\\"').replace('\n', '\\n')
+            escaped_title = title.replace('"', '\\"')
+            escaped_subtitle = subtitle.replace('"', '\\"')
+            
             script = (
-                f'display notification "{notification_message}" '
-                f'with title "{title}" '
-                f'subtitle "{subtitle}"'
+                f'display notification "{escaped_message}" '
+                f'with title "{escaped_title}" '
+                f'subtitle "{escaped_subtitle}"'
             )
             cmd = ["osascript", "-e", script]
 
