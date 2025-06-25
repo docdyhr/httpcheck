@@ -9,7 +9,8 @@
 * Purpose: CLI tool to Check Website HTTP Status + macOS Menu Bar App
 * Release date: 29 April 2025
 
-## usage: httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
+## usage: 
+httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
 
 ### positional arguments
 
