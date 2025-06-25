@@ -2,11 +2,11 @@
 
 # Check Websites HTTP Status Codes with httpcheck
 
-* Name: httpcheck
+* Name: httpcheck (CLI) / onSite (Menu Bar App)
 * Version: 1.3.0
 * Programming language: Python 3
-* Author: Thomas J. Dyhr
-* Purpose: CLI tool to Check Website HTTP Status
+* Author: Thomas Juul Dyhr
+* Purpose: CLI tool to Check Website HTTP Status + macOS Menu Bar App
 * Release date: 29 April 2025
 
 ## usage: httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
@@ -92,6 +92,12 @@ chmod + ~/bin/httpcheck
 
 * Check HTTP status codes for one or more websites
 * Support for macOS notifications on failures
+* **NEW: Menu bar app for continuous monitoring**
+  * Live status indicator in menu bar (🟢/🔴)
+  * Background checking with configurable intervals
+  * Rich native macOS notifications with actions
+  * Click notifications to open failing sites
+  * Easy site management through menu interface
 * Advanced redirect tracking and control
   * Follow all redirects, none, or limit by protocol (HTTP/HTTPS)
   * Configure maximum number of redirects to follow
@@ -216,6 +222,68 @@ httpcheck --comment-style hash @domains.txt
 # Only recognize // style comments
 httpcheck --comment-style slash @domains.txt
 ```
+
+## onSite - menu bar app (macOS)
+
+For continuous monitoring with a native macOS experience, use onSite - the menu bar app:
+
+### installation
+
+```shell
+# Install additional dependencies for menu bar app
+pip install rumps pyobjc-framework-Cocoa py2app
+
+# Run the menu bar app directly
+python3 httpcheck_menubar.py
+```
+
+### building a standalone app
+
+Create a native macOS app bundle:
+
+```shell
+# Build the app (creates dist/onSite.app)
+python setup.py py2app
+
+# Copy to Applications folder
+cp -r "dist/onSite.app" /Applications/
+
+# Run from Applications or Spotlight
+open "/Applications/onSite.app"
+```
+
+### menu bar app features
+
+* **Live Status Indicator**: Menu bar shows ⚡ (white lightning - all good/checking), 🔴⚡ (red + lightning - failures)
+* **Badge Count**: Shows number of failed sites next to the icon
+* **Rich Notifications**: Native macOS notifications with:
+  * Site down alerts with status codes
+  * Recovery notifications when sites come back online
+  * Click actions to open failing sites in browser
+  * Custom sounds for different alert types
+* **Background Monitoring**: Configurable check intervals (default 15 minutes, minimum 60 seconds)
+* **Site Management**: Add, remove, and edit monitored sites through menu
+* **Settings**: Configure check intervals, clear failed sites, view logs
+* **Configuration Storage**: Sites and settings saved to `~/.httpcheck/`
+
+### menu bar app usage
+
+1. **Add Sites**: Click menu bar icon → "Add Site..." → Enter URL (automatically checks status)
+2. **Manual Check**: Click "Check Now" for immediate status check
+3. **Auto-Check**: Toggle automatic background checking on/off (default: 15 minutes)
+4. **View Status**: Click on menu to see all sites with status indicators
+5. **Settings**: Adjust check interval, clear failed sites, view logs
+
+### keyboard shortcuts and tips
+
+* Menu bar shows white lightning ⚡ for normal status, red lightning 🔴⚡ for failures
+* Failed site count appears as badge number
+* Notifications include action buttons (Check Now, View, Dismiss)
+* Clicking notifications opens the failing site in your default browser
+* Logs are stored in `~/Library/Logs/onSite/onsite.log` following macOS best practices
+* Log rotation: 5MB max size, 5 backup files maintained automatically
+* Logs viewable through Console.app or "View logs" menu item
+* Configuration files stored in `~/.httpcheck/` for easy backup
 
 ## history
 

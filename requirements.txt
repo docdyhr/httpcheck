@@ -17,3 +17,11 @@ tomlkit==0.12.4
 typing_extensions>=4.12.2
 urllib3==2.5.0
 wrapt==1.16.0
+
+# Menu bar app dependencies
+rumps>=0.4.0
+pyobjc-framework-Cocoa>=10.0
+pyobjc-framework-Foundation>=10.0
+pyobjc-framework-AppKit>=10.0
+pyobjc-core>=10.0
+py2app>=0.28

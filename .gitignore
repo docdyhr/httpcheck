@@ -195,6 +195,22 @@ pip-selfcheck.json
 
 # End of https://www.gitignore.io/api/venv,macos,python,sublimetext, visualstudiocode
 
+### AI Assistant Files ###
+# Claude
+CLAUDE.md
+.claude/
+
+# Cursor
+.cursorrules
+.cursor/
+
+# GitHub Copilot
+.github/copilot-instructions.md
+
+# Other AI assistants
+.ai/
+.assistant/
+
 ### Private ###
 
 # exclude private files
