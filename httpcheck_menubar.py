@@ -686,13 +686,14 @@ class HTTPCheckApp(rumps.App):
             return
 
         # Create a simple picker using AppleScript
-        sites_list = '", "'.join(self.sites)
+        # Escape any quotes in site URLs for AppleScript
+        escaped_sites = [site.replace('"', '\\"') for site in self.sites]
+        sites_list = '", "'.join(escaped_sites)
         script = f'''
         tell application "System Events"
             activate
             set sitesList to {{"{sites_list}"}}
-            set selectedSite to choose from list sitesList with title "Remove Site"\
-                with prompt "Select site to remove:"
+            set selectedSite to choose from list sitesList with title "Remove Site" with prompt "Select site to remove:"
             if selectedSite is not false then
                 return selectedSite as string
             else
