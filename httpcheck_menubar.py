@@ -175,70 +175,101 @@ class HTTPCheckApp(rumps.App):
         return True, normalized_url
 
     def setup_logging(self):
-        """Setup logging following macOS best practices with DEBUG support"""
+        """Setup logging following macOS best practices with flexible configuration"""
         try:
             # Clear any existing handlers to prevent duplicates
             logging.root.handlers = []
+            
+            # Get log level from config or use default
+            try:
+                log_level = getattr(logging, self.log_level)
+            except AttributeError:
+                log_level = logging.INFO
+                print(f"Warning: Invalid log level '{self.log_level}', using INFO")
 
-            # Determine log level based on debug mode
-            log_level = logging.DEBUG if self.debug_mode else logging.INFO
+            # Create handlers list
+            handlers = []
 
             # Create file handler with rotation support
             try:
                 from logging.handlers import RotatingFileHandler
 
-                # Create rotating file handler (max 5MB, keep 5 backup files)
+                # Create rotating file handler with configurable settings
                 file_handler = RotatingFileHandler(
                     self.log_file,
-                    maxBytes=5 * 1024 * 1024,  # 5MB
-                    backupCount=5,
+                    maxBytes=self.log_max_bytes,
+                    backupCount=self.log_backup_count,
                     encoding='utf-8'
                 )
 
-                # Create formatter following macOS conventions
+                # Create formatter with configurable format
                 formatter = logging.Formatter(
-                    '%(asctime)s [%(levelname)s] onSite: %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S'
+                    self.log_format,
+                    datefmt=self.log_date_format
                 )
                 file_handler.setFormatter(formatter)
-
-                # Configure root logger only
-                logging.basicConfig(
-                    handlers=[file_handler],
-                    level=log_level,
-                    format='%(asctime)s [%(levelname)s] onSite: %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    force=True  # Force reconfiguration
-                )
-
-                # Log startup messages
-                logging.info("onSite started successfully")
-                if self.debug_mode:
-                    logging.debug("Debug logging enabled")
-                logging.info(f"Log file: {self.log_file}")
-                logging.info(f"Config directory: {self.config_dir}")
-                logging.debug(f"Log level: {logging.getLevelName(log_level)}")
+                handlers.append(file_handler)
 
             except ImportError:
-                # Fallback to basic file handler if RotatingFileHandler
-                # unavailable
-                logging.basicConfig(
-                    filename=self.log_file,
-                    level=log_level,
-                    format='%(asctime)s [%(levelname)s] onSite: %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    encoding='utf-8',
-                    force=True
+                # Fallback to basic file handler if RotatingFileHandler unavailable
+                file_handler = logging.FileHandler(
+                    self.log_file,
+                    encoding='utf-8'
                 )
-                logging.info("onSite started successfully (basic logging)")
+                formatter = logging.Formatter(
+                    self.log_format,
+                    datefmt=self.log_date_format
+                )
+                file_handler.setFormatter(formatter)
+                handlers.append(file_handler)
+
+            # Add console handler if requested
+            if self.log_to_console:
+                console_handler = logging.StreamHandler()
+                console_handler.setFormatter(formatter)
+                handlers.append(console_handler)
+
+            # Configure root logger
+            logging.basicConfig(
+                handlers=handlers,
+                level=log_level,
+                force=True  # Force reconfiguration
+            )
+
+            # Apply module-specific log levels
+            for module_name, module_level in self.module_log_levels.items():
+                try:
+                    module_logger = logging.getLogger(module_name)
+                    module_logger.setLevel(getattr(logging, module_level.upper()))
+                except (AttributeError, ValueError) as exc:
+                    print(f"Warning: Invalid log level for module {module_name}: {exc}")
+
+            # Configure specific loggers to reduce noise if needed
+            if log_level > logging.DEBUG:
+                # Reduce verbosity of urllib3 and requests
+                logging.getLogger('urllib3').setLevel(logging.WARNING)
+                logging.getLogger('requests').setLevel(logging.WARNING)
+
+            # Log startup messages
+            logger = logging.getLogger('onSite')
+            logger.info("onSite started successfully")
+            logger.info(f"Log level: {self.log_level}")
+            logger.info(f"Log file: {self.log_file}")
+            logger.info(f"Config directory: {self.config_dir}")
+            
+            if self.log_to_console:
+                logger.debug("Console logging enabled")
+            
+            if self.module_log_levels:
+                logger.debug(f"Module-specific log levels: {self.module_log_levels}")
 
         except Exception as exc:
             # Fallback to console logging if file logging fails
-            print(f"Warning: Could not setup file logging: {exc}")
+            print(f"Warning: Could not setup logging: {exc}")
             logging.basicConfig(
-                level=log_level,
-                format='%(asctime)s [%(levelname)s] onSite: %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S',
+                level=logging.INFO,
+                format=self.log_format,
+                datefmt=self.log_date_format,
                 force=True
             )
 
@@ -293,7 +324,19 @@ class HTTPCheckApp(rumps.App):
                            callback=self.change_interval))
         settings_menu.add(rumps.MenuItem("Clear failed sites",
                                          callback=self.clear_failed))
-        settings_menu.add(rumps.MenuItem("View logs", callback=self.view_logs))
+        settings_menu.add(rumps.separator)
+        
+        # Logging submenu
+        logging_menu = rumps.MenuItem("Logging")
+        logging_menu.add(
+            rumps.MenuItem(f"Level: {getattr(self, 'log_level', 'INFO')}",
+                           callback=self.change_log_level))
+        logging_menu.add(
+            rumps.MenuItem(f"Console: {'✓' if getattr(self, 'log_to_console', False) else '✗'}",
+                           callback=self.toggle_console_logging))
+        logging_menu.add(rumps.MenuItem("View logs", callback=self.view_logs))
+        settings_menu.add(logging_menu)
+        
         self.menu.add(settings_menu)
 
         self.menu.add(rumps.separator)
@@ -392,7 +435,7 @@ class HTTPCheckApp(rumps.App):
 
                     if status_code not in range(200, 400):
                         self.failed_sites.add(site)
-                        logging.warning("Site failed: %s - Status: %s",
+                        logging.getLogger('onSite').warning("Site failed: %s - Status: %s",
                                         site, result.status)
 
                         # Send notification for newly failed sites
@@ -413,7 +456,7 @@ class HTTPCheckApp(rumps.App):
 
                 except Exception as exc:
                     self.failed_sites.add(site)
-                    logging.error("Error checking %s: %s", site, str(exc))
+                    logging.getLogger('onSite').error("Error checking %s: %s", site, str(exc))
 
                     if site not in old_failed:
                         self.notification_manager.send_error_notification(
@@ -423,7 +466,7 @@ class HTTPCheckApp(rumps.App):
                         )
 
             self.last_check_time = datetime.now()
-            logging.info("Check completed: %s/%s sites failed",
+            logging.getLogger('onSite').info("Check completed: %s/%s sites failed",
                          len(self.failed_sites), total_sites)
 
             # Send summary notification
@@ -475,11 +518,11 @@ class HTTPCheckApp(rumps.App):
             self.timer.stop()
             self.timer = None
             sender.title = "Auto-check: OFF"
-            logging.info("Auto-check disabled")
+            logging.getLogger('onSite').info("Auto-check disabled")
         else:
             self.start_background_checking()
             sender.title = "Auto-check: ON"
-            logging.info("Auto-check enabled with %ss interval",
+            logging.getLogger('onSite').info("Auto-check enabled with %ss interval",
                          self.check_interval)
 
     def start_background_checking(self):
@@ -500,11 +543,11 @@ return userInput'''
 
         try:
             import subprocess
-            logging.debug(f"Executing AppleScript: {script[:100]}...")
+            logging.getLogger('onSite').debug(f"Executing AppleScript: {script[:100]}...")
             result = subprocess.run(['osascript', '-e', script],
                                     capture_output=True, text=True, check=True)
             url = result.stdout.strip()
-            logging.debug(f"AppleScript result: {url}")
+            logging.getLogger('onSite').debug(f"AppleScript result: {url}")
 
             # Validate and add the site
             success, message = self.validate_and_add_site(url)
@@ -514,7 +557,7 @@ return userInput'''
 
                 self.sites.append(normalized_url)
                 self.save_sites()
-                logging.info(f"Added site: {normalized_url}")
+                logging.getLogger('onSite').info(f"Added site: {normalized_url}")
 
                 # Immediately check the new site
                 self.notification_manager.send_notification(
@@ -552,7 +595,7 @@ return userInput'''
 
                     except Exception as exc:
                         self.failed_sites.add(normalized_url)
-                        logging.error(
+                        logging.getLogger('onSite').error(
                             f"Error checking new site {normalized_url}: {exc}")
                         self.notification_manager.send_notification(
                             title="❌ New Site Error",
@@ -579,7 +622,7 @@ return userInput'''
     display dialog "Invalid URL: {escaped_message}" with title "Add Site Error - onSite" buttons {{"OK"}} default button "OK" with icon caution
 end tell'''
                 subprocess.run(['osascript', '-e', error_script], check=False)
-                logging.warning(
+                logging.getLogger('onSite').warning(
                     f"Failed to add site - validation error: {message}")
 
         except (subprocess.CalledProcessError, FileNotFoundError):
@@ -604,7 +647,7 @@ end tell'''
 
                     self.sites.append(normalized_url)
                     self.save_sites()
-                    logging.info("Added site: %s", normalized_url)
+                    logging.getLogger('onSite').info("Added site: %s", normalized_url)
 
                     # Immediately check the new site
                     self.notification_manager.send_notification(
@@ -643,7 +686,7 @@ end tell'''
 
                         except Exception as exc:
                             self.failed_sites.add(normalized_url)
-                            logging.error(
+                            logging.getLogger('onSite').error(
                                 f"Error checking new site "
                                 f"{normalized_url}: {exc}")
                             self.notification_manager.send_notification(
@@ -670,7 +713,7 @@ end tell'''
                         message=message,
                         subtitle="Please check the URL format and try again"
                     )
-                    logging.warning(
+                    logging.getLogger('onSite').warning(
                         f"Failed to add site - validation error: {message}")
 
     @rumps.clicked("Remove Site...")
@@ -757,9 +800,9 @@ end tell'''
             import shutil
             backup_file = self.config_dir / 'sites_backup.json'
             shutil.copy2(self.sites_file, backup_file)
-            logging.info(f"Created backup: {backup_file}")
+            logging.getLogger('onSite').info(f"Created backup: {backup_file}")
         except Exception as exc:
-            logging.warning(f"Could not create backup: {exc}")
+            logging.getLogger('onSite').warning(f"Could not create backup: {exc}")
 
         os.system(f"open -t {self.sites_file}")
 
@@ -834,6 +877,96 @@ end tell'''
             title="onSite",
             message="Failed sites list cleared"
         )
+
+    @rumps.clicked("Log Level")
+    def change_log_level(self, _):
+        """Change the logging level"""
+        levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        current_level = getattr(self, 'log_level', 'INFO')
+        
+        # Use AppleScript to create a list picker
+        escaped_levels = '", "'.join(levels)
+        script = f'''tell application "System Events"
+    activate
+    set levelsList to {{"{escaped_levels}"}}
+    set selectedLevel to choose from list levelsList with title "Change Log Level" with prompt "Select logging level:" default items {{"{current_level}"}}
+    if selectedLevel is not false then
+        return selectedLevel as string
+    else
+        return ""
+    end if
+end tell'''
+        
+        try:
+            import subprocess
+            result = subprocess.run(['osascript', '-e', script],
+                                    capture_output=True, text=True, check=True)
+            selected = result.stdout.strip()
+            
+            if selected and selected in levels:
+                self.log_level = selected
+                
+                # Apply new log level immediately
+                try:
+                    new_level = getattr(logging, selected)
+                    logging.getLogger().setLevel(new_level)
+                    
+                    # Update specific loggers
+                    if new_level > logging.DEBUG:
+                        logging.getLogger('urllib3').setLevel(logging.WARNING)
+                        logging.getLogger('requests').setLevel(logging.WARNING)
+                    else:
+                        logging.getLogger('urllib3').setLevel(new_level)
+                        logging.getLogger('requests').setLevel(new_level)
+                    
+                    self.save_config()
+                    self.build_menu()
+                    
+                    self.notification_manager.send_notification(
+                        title="onSite",
+                        message=f"Log level changed to {selected}"
+                    )
+                    logging.getLogger('onSite').info(f"Log level changed to {selected}")
+                    
+                except Exception as exc:
+                    logging.getLogger('onSite').error(f"Error changing log level: {exc}")
+                    
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # Fallback to simple dialog
+            response = rumps.Window(
+                title="Change Log Level",
+                message=f"Current level: {current_level}\nEnter new level (DEBUG, INFO, WARNING, ERROR, CRITICAL):",
+                default_text=current_level,
+                ok="Set",
+                cancel="Cancel"
+            ).run()
+            
+            if response.clicked and response.text.upper() in levels:
+                self.log_level = response.text.upper()
+                self.save_config()
+                self.build_menu()
+                self.notification_manager.send_notification(
+                    title="onSite",
+                    message=f"Log level changed to {self.log_level}"
+                )
+
+    @rumps.clicked("Console")
+    def toggle_console_logging(self, sender):
+        """Toggle console logging on/off"""
+        self.log_to_console = not getattr(self, 'log_to_console', False)
+        
+        # Restart logging to apply changes
+        self.setup_logging()
+        
+        self.save_config()
+        self.build_menu()
+        
+        status = "enabled" if self.log_to_console else "disabled"
+        self.notification_manager.send_notification(
+            title="onSite",
+            message=f"Console logging {status}"
+        )
+        logging.getLogger('onSite').info(f"Console logging {status}")
 
     @rumps.clicked("View logs")
     def view_logs(self, _):
@@ -938,10 +1071,10 @@ end tell'''
                     self.sites = validated_sites
 
                     if invalid_sites:
-                        logging.warning("Found %d invalid sites in config:",
+                        logging.getLogger('onSite').warning("Found %d invalid sites in config:",
                                         len(invalid_sites))
                         for invalid in invalid_sites:
-                            logging.warning("  - %s", invalid)
+                            logging.getLogger('onSite').warning("  - %s", invalid)
 
                         # Show notification about invalid sites
                         # Show notification about invalid sites
@@ -962,11 +1095,11 @@ end tell'''
                         # Save the cleaned sites list
                         self.save_sites()
 
-                    logging.info("Loaded %d valid sites (removed %d invalid)",
+                    logging.getLogger('onSite').info("Loaded %d valid sites (removed %d invalid)",
                                  len(validated_sites), len(invalid_sites))
 
             except Exception as exc:
-                logging.error("Error loading sites: %s", exc)
+                logging.getLogger('onSite').error("Error loading sites: %s", exc)
                 self.sites = []
         else:
             # Create default sites file
@@ -978,9 +1111,9 @@ end tell'''
         try:
             with open(self.sites_file, 'w', encoding='utf-8') as file:
                 json.dump({'sites': self.sites}, file, indent=2)
-            logging.info("Saved %s sites", len(self.sites))
+            logging.getLogger('onSite').info("Saved %s sites", len(self.sites))
         except Exception as exc:
-            logging.error("Error saving sites: %s", exc)
+            logging.getLogger('onSite').error("Error saving sites: %s", exc)
 
     def load_config(self):
         """Load application configuration"""
@@ -989,21 +1122,82 @@ end tell'''
                 with open(self.config_file, 'r', encoding='utf-8') as file:
                     config = json.load(file)
                     self.check_interval = config.get('check_interval', 900)
+                    
+                    # Load logging configuration with defaults
+                    logging_config = config.get('logging', {})
+                    
+                    # Basic logging settings
+                    self.log_level = logging_config.get('level', 'INFO').upper()
+                    self.log_to_console = logging_config.get('console', False)
+                    self.log_format = logging_config.get('format', 
+                        '%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+                    self.log_date_format = logging_config.get('date_format', 
+                        '%Y-%m-%d %H:%M:%S')
+                    
+                    # Log rotation settings
+                    rotation_config = logging_config.get('rotation', {})
+                    self.log_max_bytes = rotation_config.get('max_bytes', 5 * 1024 * 1024)  # 5MB
+                    self.log_backup_count = rotation_config.get('backup_count', 5)
+                    
+                    # Module-specific log levels
+                    self.module_log_levels = logging_config.get('module_levels', {})
+                    
+                    # Legacy debug_mode support
                     self.debug_mode = config.get('debug_mode', False)
+                    if self.debug_mode and not hasattr(self, 'log_level'):
+                        self.log_level = 'DEBUG'
+                        
             except Exception as exc:
                 # Use print before logging is setup
                 print(f"Error loading config: {exc}")
+                # Set defaults on error
+                self.log_level = 'INFO'
+                self.log_to_console = False
+                self.log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+                self.log_date_format = '%Y-%m-%d %H:%M:%S'
+                self.log_max_bytes = 5 * 1024 * 1024
+                self.log_backup_count = 5
+                self.module_log_levels = {}
+        else:
+            # Set defaults if no config file
+            self.log_level = 'INFO'
+            self.log_to_console = False
+            self.log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            self.log_date_format = '%Y-%m-%d %H:%M:%S'
+            self.log_max_bytes = 5 * 1024 * 1024
+            self.log_backup_count = 5
+            self.module_log_levels = {}
 
     def save_config(self):
         """Save application configuration"""
         try:
+            # Build config dictionary
+            config = {
+                'check_interval': self.check_interval,
+                'logging': {
+                    'level': getattr(self, 'log_level', 'INFO'),
+                    'console': getattr(self, 'log_to_console', False),
+                    'format': getattr(self, 'log_format', 
+                        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'),
+                    'date_format': getattr(self, 'log_date_format', '%Y-%m-%d %H:%M:%S'),
+                    'rotation': {
+                        'max_bytes': getattr(self, 'log_max_bytes', 5 * 1024 * 1024),
+                        'backup_count': getattr(self, 'log_backup_count', 5)
+                    },
+                    'module_levels': getattr(self, 'module_log_levels', {})
+                }
+            }
+            
+            # Keep legacy debug_mode for backward compatibility
+            if hasattr(self, 'debug_mode'):
+                config['debug_mode'] = self.debug_mode
+            
             with open(self.config_file, 'w', encoding='utf-8') as file:
-                json.dump({
-                    'check_interval': self.check_interval,
-                    'debug_mode': getattr(self, 'debug_mode', False)
-                }, file, indent=2)
+                json.dump(config, file, indent=2)
+                
+            logging.getLogger('onSite').debug("Configuration saved")
         except Exception as exc:
-            logging.error("Error saving config: %s", exc)
+            logging.getLogger('onSite').error("Error saving config: %s", exc)
 
 
 if __name__ == "__main__":

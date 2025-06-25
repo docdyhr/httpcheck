@@ -2,6 +2,8 @@
 
 # Check Websites HTTP Status Codes with httpcheck
 
+<img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
+
 * Name: httpcheck (CLI) / onSite (Menu Bar App)
 * Version: 1.3.0
 * Programming language: Python 3
