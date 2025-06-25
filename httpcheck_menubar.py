@@ -573,10 +573,11 @@ class HTTPCheckApp(rumps.App):
                     self.start_background_checking()
             else:
                 # Show validation error
+                escaped_message = message.replace('"', '\\"').replace('\n', '\\n')
                 error_script = f'''
                 tell application "System Events"
                     activate
-                    display dialog "❌ Invalid URL: {message}" with title "Add Site Error - onSite" buttons {{"OK"}} default button "OK" with icon caution
+                    display dialog "Invalid URL: {escaped_message}" with title "Add Site Error - onSite" buttons {{"OK"}} default button "OK" with icon caution
                 end tell
                 '''
                 subprocess.run(['osascript', '-e', error_script], check=False)
@@ -765,15 +766,7 @@ class HTTPCheckApp(rumps.App):
         instruction_script = '''
         tell application "System Events"
             activate
-            display dialog "Edit Sites Instructions:
-
-• Each URL should be a complete HTTP/HTTPS address
-• Example: https://example.com
-• Save the file when done
-• The app will validate URLs when reloaded
-
-Backup created: sites_backup.json" with title "Edit Sites - onSite"\
-                buttons {"OK"} default button "OK" with icon note
+            display dialog "Edit Sites Instructions:\\n\\n- Each URL should be a complete HTTP/HTTPS address\\n- Example: https://example.com\\n- Save the file when done\\n- The app will validate URLs when reloaded\\n\\nBackup created: sites_backup.json" with title "Edit Sites - onSite" buttons {"OK"} default button "OK" with icon note
         end tell
         '''
 
@@ -902,11 +895,11 @@ Copyright © June 2025. All rights reserved.
 Built with Python, rumps, and PyObjC for macOS integration."""
 
             # Use AppleScript to show a proper dialog
+            escaped_about = about_text.replace('"', '\\"').replace('\n', '\\n')
             script = f'''
             tell application "System Events"
                 activate
-                display dialog "{about_text}" with title "About onSite"\
-                    buttons {{"OK"}} default button "OK" with icon note
+                display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK" with icon note
             end tell
             '''
 
