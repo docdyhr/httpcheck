@@ -120,6 +120,7 @@
   * ~~Add per-domain timeout settings~~ ✓
   * ~~Implement retry logic~~ ✓
   * ~~Add retry delay configuration~~ ✓
+
 ```
 
 The updated TODO list now aligns with the roadmap I provided, prioritizing tasks based on:

@@ -8,10 +8,11 @@ import json
 import logging
 import os
 import re
+import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Optional
 from urllib.parse import urlparse
 
 import rumps
@@ -25,7 +26,7 @@ class HTTPCheckApp(rumps.App):
     """Menu bar application for HTTP status monitoring"""
 
     def __init__(self):
-        super().__init__("onSite", title="⚡")
+        super().__init__("onSite", title=None)
 
         # Initialize state
         self.sites: list[str] = []
@@ -34,6 +35,10 @@ class HTTPCheckApp(rumps.App):
         self.checking = False
         self.check_interval = 900  # 15 minutes default
         self.timer = None
+
+        # File monitoring variables
+        self.file_monitor_timer = None
+        self.last_file_mtime = 0
 
         # Setup paths following macOS best practices
         self.config_dir = Path.home() / ".httpcheck"
@@ -48,18 +53,23 @@ class HTTPCheckApp(rumps.App):
 
         # Load configuration
         self.load_config()
-        self.load_sites()
 
         # Setup logging following macOS best practices
         # Check for debug mode from config
         self.debug_mode = getattr(self, "debug_mode", False)
         self.setup_logging()
 
-        # Initialize native notifications
+        # Initialize native notifications (needed for load_sites error handling)
         self.notification_manager = MacOSNotificationManager()
+
+        # Load sites after notification manager is ready
+        self.load_sites()
 
         # Build initial menu
         self.build_menu()
+
+        # Setup icon
+        self.setup_icon()
 
         # Update icon based on initial state
         self.update_status_icon()
@@ -137,6 +147,24 @@ class HTTPCheckApp(rumps.App):
             if len(url) > 2048:
                 return False, "URL is too long (maximum 2048 characters)"
 
+            # Check for common invalid characters in URL
+            invalid_chars = [" ", "<", ">", '"', "{", "}", "|", "\\", "^", "`"]
+            for char in invalid_chars:
+                if char in url:
+                    return False, f"URL contains invalid character: '{char}'"
+
+            # Check for suspicious patterns
+            if url.count("://") > 1:
+                return False, "URL contains multiple protocol indicators"
+
+            # Check port number if present
+            if ":" in parsed.netloc and not self._is_valid_port(parsed.netloc):
+                return False, "Invalid port number"
+
+            # Check for minimum path requirements for some common patterns
+            if parsed.path and len(parsed.path) > 1000:
+                return False, "URL path is too long"
+
             return True, url  # Return the normalized URL
 
         except Exception as exc:
@@ -149,6 +177,17 @@ class HTTPCheckApp(rumps.App):
 
             ipaddress.ip_address(hostname)
             return True
+        except ValueError:
+            return False
+
+    def _is_valid_port(self, netloc: str) -> bool:
+        """Check if port number in netloc is valid"""
+        try:
+            if ":" in netloc:
+                port_str = netloc.split(":")[-1]
+                port = int(port_str)
+                return 1 <= port <= 65535
+            return True  # No port specified is valid
         except ValueError:
             return False
 
@@ -319,11 +358,9 @@ class HTTPCheckApp(rumps.App):
 
         # Settings
         settings_menu = rumps.MenuItem("Settings")
-        settings_menu.add(
-            rumps.MenuItem(
-                f"Check interval: {self.check_interval}s", callback=self.change_interval
-            )
-        )
+        interval_item = rumps.MenuItem(f"Check interval: {self.check_interval}s")
+        interval_item.set_callback(self.change_interval)
+        settings_menu.add(interval_item)
         settings_menu.add(
             rumps.MenuItem("Clear failed sites", callback=self.clear_failed)
         )
@@ -352,53 +389,86 @@ class HTTPCheckApp(rumps.App):
         self.menu.add(rumps.MenuItem("About", callback=self.about))
         self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
 
+    def setup_icon(self):
+        """Setup the menu bar icon from Icon.icns file"""
+        try:
+            import os
+
+            # Try to find the icon file
+            icon_path = None
+
+            # Check if we're running from a bundle
+            bundle_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+            # Try different possible locations
+            possible_paths = [
+                os.path.join(bundle_path, "Resources", "Icon.icns"),
+                os.path.join(bundle_path, "images", "Icon.icns"),
+                os.path.join(os.path.dirname(__file__), "images", "Icon.icns"),
+                "images/Icon.icns",
+            ]
+
+            # Log all paths we're trying
+            logging.getLogger("onSite").debug(f"Bundle path: {bundle_path}")
+            logging.getLogger("onSite").debug(
+                f"__file__ dir: {os.path.dirname(__file__)}"
+            )
+            for i, path in enumerate(possible_paths):
+                exists = os.path.exists(path)
+                logging.getLogger("onSite").debug(
+                    f"Path {i+1}: {path} (exists: {exists})"
+                )
+
+            for path in possible_paths:
+                if os.path.exists(path):
+                    icon_path = path
+                    break
+
+            if icon_path:
+                # Store the app icon path for About dialog and menu bar
+                self.app_icon_path = icon_path
+
+                # Set initial icon using rumps method (expects file path)
+                self.icon = icon_path
+                logging.getLogger("onSite").info(f"Loaded icon from {icon_path}")
+            else:
+                logging.getLogger("onSite").warning(
+                    "Icon.icns not found, using fallback"
+                )
+                self._use_fallback_icon()
+
+        except Exception as exc:
+            logging.getLogger("onSite").error(f"Error setting up icon: {exc}")
+            self._use_fallback_icon()
+
+    def _use_fallback_icon(self):
+        """Use emoji fallback if icon file not available"""
+        self.title = "⚡"
+        self.template = True
+        self.app_icon_path = None
+
     def update_status_icon(self):
         """Update the menu bar icon based on status"""
-        if self.failed_sites:
-            # Red lightning flash for failures
-            try:
-                # Try to create a red lightning icon using SF Symbols or
-                # Unicode
-                self.title = "⚡"
-                # Don't use template mode for color control
-                self.template = False
-
-                # Try to set red color using NSColor if available
-                try:
-                    from AppKit import (
-                        NSAttributedString,
-                        NSColor,
-                        NSFont,
-                        NSForegroundColorAttributeKey,
-                    )
-                    from Foundation import NSMutableDictionary
-
-                    # Create red attributed string
-                    attrs = NSMutableDictionary.alloc().init()
-                    attrs.setObject_forKey_(
-                        NSColor.redColor(), NSForegroundColorAttributeKey
-                    )
-                    attrs.setObject_forKey_(NSFont.systemFontOfSize_(14), "NSFont")
-
-                    attributed_title = (
-                        NSAttributedString.alloc().initWithString_attributes_(
-                            "⚡", attrs
-                        )
-                    )
-                    self.title = attributed_title
-                except (ImportError, Exception):
-                    # Fallback to red circle + lightning if NSColor
-                    # doesn't work
-                    self.title = "🔴⚡"
-
-            except Exception:
-                # Final fallback
-                self.title = "🔴⚡"
+        if hasattr(self, "app_icon_path") and self.app_icon_path:
+            # Use the icon file path
+            if self.failed_sites:
+                # For failures, show the icon with a red badge using title
+                self.icon = self.app_icon_path
+                self.title = "●"  # Red dot indicator next to icon
+                self.template = False  # Don't use template mode to show color
+            else:
+                # Normal state - use icon as template
+                self.icon = self.app_icon_path
+                self.title = None  # No supplementary text
+                self.template = True  # Use template mode for normal state
         else:
-            # White lightning flash for normal states
-            # (default, checking, all good)
-            self.title = "⚡"
-            self.template = True  # Use template mode for white/system color
+            # Fallback to emoji-based status
+            if self.failed_sites:
+                self.title = "🔴⚡"
+                self.template = False
+            else:
+                self.title = "⚡"
+                self.template = True
 
     @rumps.clicked("Check Now")
     def check_now(self, _):
@@ -489,11 +559,16 @@ class HTTPCheckApp(rumps.App):
             )
 
             # Send summary notification
-            self.notification_manager.send_check_complete_summary(
-                total=total_sites,
-                failed=len(self.failed_sites),
-                callback=self.handle_notification_click,
-            )
+            try:
+                self.notification_manager.send_check_complete_summary(
+                    total=total_sites,
+                    failed=len(self.failed_sites),
+                    callback=None,  # Disable callback temporarily to fix crash
+                )
+            except Exception as exc:
+                logging.getLogger("onSite").error(
+                    f"Error sending summary notification: {exc}"
+                )
 
         finally:
             self.checking = False
@@ -752,10 +827,22 @@ end tell"""
 
     @rumps.clicked("Remove Site...")
     def remove_site(self, _):
-        """Remove a site from monitoring"""
+        """Remove a site from monitoring with validation"""
         if not self.sites:
             self.notification_manager.send_notification(
-                title="onSite", message="No sites to remove"
+                title="onSite",
+                message="No sites to remove",
+                subtitle="Add sites first to monitor them",
+            )
+            return
+
+        # Validate that we have valid sites list
+        if len(self.sites) > 50:  # Safety check
+            logging.getLogger("onSite").error(
+                "Too many sites detected, this shouldn't happen"
+            )
+            self.notification_manager.send_error_notification(
+                error_msg="Site list appears corrupted, please check configuration"
             )
             return
 
@@ -829,7 +916,7 @@ end tell"""
 
     @rumps.clicked("Edit Sites...")
     def edit_sites(self, _):
-        """Open sites file in default editor with validation instructions"""
+        """Open sites file in default editor with real-time monitoring"""
         # Create a backup before editing
         try:
             import shutil
@@ -840,27 +927,217 @@ end tell"""
         except Exception as exc:
             logging.getLogger("onSite").warning(f"Could not create backup: {exc}")
 
-        os.system(f"open -t {self.sites_file}")
-
-        # Show validation instructions
-        instruction_script = """tell application "System Events"
+        # Show enhanced validation instructions
+        if hasattr(self, "app_icon_path") and self.app_icon_path:
+            instruction_script = f"""tell application "System Events"
     activate
-    display dialog "Edit Sites Instructions:\\n\\n- Each URL should be a complete HTTP/HTTPS address\\n- Example: https://example.com\\n- Save the file when done\\n- The app will validate URLs when reloaded\\n\\nBackup created: sites_backup.json" with title "Edit Sites - onSite" buttons {"OK"} default button "OK" with icon note
-end tell"""
+    display dialog "Edit Sites Instructions:\\n\\n• JSON format: {{\\\"sites\\\": [\\\"https://example.com\\\", \\\"https://another.com\\\"]}}\\n• Each URL must be complete HTTP/HTTPS address\\n• File will be monitored and reloaded automatically\\n• Backup created: sites_backup.json\\n\\nClick OK to open editor." with title "Edit Sites - onSite" buttons {{"OK", "Cancel"}} default button "OK" with icon (POSIX file "{self.app_icon_path}")
+end tell
+return result"""
+        else:
+            instruction_script = """tell application "System Events"
+    activate
+    display dialog "Edit Sites Instructions:\\n\\n• JSON format: {{\\\"sites\\\": [\\\"https://example.com\\\", \\\"https://another.com\\\"]}}\\n• Each URL must be complete HTTP/HTTPS address\\n• File will be monitored and reloaded automatically\\n• Backup created: sites_backup.json\\n\\nClick OK to open editor." with title "Edit Sites - onSite" buttons {{"OK", "Cancel"}} default button "OK" with icon note
+end tell
+return result"""
 
         try:
-            import subprocess
+            result = subprocess.run(
+                ["osascript", "-e", instruction_script],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            button_clicked = result.stdout.strip()
 
-            subprocess.run(["osascript", "-e", instruction_script], check=False)
-        except Exception:
-            # Fallback to notification
+            if "Cancel" in button_clicked:
+                return
+
+        except Exception as exc:
+            logging.getLogger("onSite").warning(
+                f"Could not show instructions dialog: {exc}"
+            )
+            # Continue anyway
+
+        # Open the file for editing
+        os.system(f"open -t {self.sites_file}")
+
+        # Start real-time file monitoring
+        self.start_file_monitoring()
+
+    def start_file_monitoring(self):
+        """Start monitoring the sites file for changes"""
+        try:
+            # Stop any existing monitoring
+            if hasattr(self, "file_monitor_timer") and self.file_monitor_timer:
+                self.file_monitor_timer.stop()
+
+            # Store the current modification time
+            if self.sites_file.exists():
+                self.last_file_mtime = self.sites_file.stat().st_mtime
+            else:
+                self.last_file_mtime = 0
+
+            # Start a timer to check for file changes every 2 seconds
+            self.file_monitor_timer = rumps.Timer(self.check_file_changes, 2)
+            self.file_monitor_timer.start()
+
+            # Show notification that monitoring started
             self.notification_manager.send_notification(
-                title="onSite",
-                message="Edit sites file",
-                subtitle=("Save file when done. Backup created: " "sites_backup.json"),
+                title="File Monitor Started",
+                message="Monitoring sites.json for changes",
+                subtitle="File will be reloaded automatically when saved",
             )
 
-    @rumps.clicked("Check interval")
+            logging.getLogger("onSite").info("Started file monitoring for sites.json")
+
+        except Exception as exc:
+            logging.getLogger("onSite").error(f"Failed to start file monitoring: {exc}")
+            self.notification_manager.send_error_notification(
+                error_msg=f"Could not start file monitoring: {exc}"
+            )
+
+    def check_file_changes(self, timer):
+        """Check if the sites file has been modified"""
+        try:
+            if not self.sites_file.exists():
+                return
+
+            current_mtime = self.sites_file.stat().st_mtime
+
+            # If file was modified
+            if current_mtime > self.last_file_mtime:
+                self.last_file_mtime = current_mtime
+
+                # Brief delay to ensure file is fully written
+                import time
+
+                time.sleep(0.5)
+
+                # Validate and reload the file
+                self.validate_and_reload_sites_file()
+
+        except Exception as exc:
+            logging.getLogger("onSite").error(f"Error checking file changes: {exc}")
+
+    def validate_and_reload_sites_file(self):
+        """Validate and reload the sites file after changes"""
+        try:
+            # Validate the sites file
+            is_valid, error_message, data = self.validate_json_file(
+                self.sites_file, "sites"
+            )
+
+            if not is_valid:
+                # Show validation error to user
+                self.notification_manager.send_error_notification(
+                    error_msg=f"Sites file invalid: {error_message[:100]}"
+                )
+
+                # Also show detailed dialog
+                error_script = f"""tell application "System Events"
+    activate
+    display dialog "Sites file validation failed:\\n\\n{error_message.replace('"', '\\\\"')[:200]}\\n\\nPlease fix the file and save again, or restore from backup." with title "Validation Error - onSite" buttons {{"OK"}} default button "OK" with icon stop
+end tell"""
+
+                try:
+                    subprocess.run(["osascript", "-e", error_script], check=False)
+                except Exception:
+                    pass  # Notification already sent above
+
+                logging.getLogger("onSite").error(
+                    f"Sites file validation failed: {error_message}"
+                )
+                return
+
+            # File is valid, reload sites
+            old_sites_count = len(self.sites)
+            old_sites = self.sites.copy()
+
+            self.load_sites()
+            new_sites_count = len(self.sites)
+
+            # Check what changed
+            added_sites = set(self.sites) - set(old_sites)
+            removed_sites = set(old_sites) - set(self.sites)
+
+            # Rebuild menu with new sites
+            self.build_menu()
+            self.update_status_icon()
+
+            # Clear failed sites that were removed
+            self.failed_sites = {
+                site for site in self.failed_sites if site in self.sites
+            }
+
+            # Create change summary
+            changes = []
+            if added_sites:
+                changes.append(f"Added: {len(added_sites)} sites")
+            if removed_sites:
+                changes.append(f"Removed: {len(removed_sites)} sites")
+
+            if changes:
+                change_text = ", ".join(changes)
+                subtitle = f"Total: {new_sites_count} sites"
+            elif new_sites_count != old_sites_count:
+                change_text = f"Updated: {old_sites_count} → {new_sites_count} sites"
+                subtitle = "File validation successful"
+            else:
+                change_text = f"Reloaded {new_sites_count} sites"
+                subtitle = "No changes detected"
+
+            # Notify user of successful update
+            self.notification_manager.send_notification(
+                title="✅ Sites Updated", message=change_text, subtitle=subtitle
+            )
+
+            logging.getLogger("onSite").info(
+                f"Sites file reloaded successfully: {change_text}"
+            )
+
+            # If we added new sites and auto-check is off, ask to start it
+            if added_sites and not self.timer and len(self.sites) > 0:
+                start_script = f"""tell application "System Events"
+    activate
+    display dialog "New sites added! Would you like to start automatic checking?" with title "Start Auto-Check - onSite" buttons {{"Yes", "No"}} default button "Yes" with icon question
+end tell
+return result"""
+
+                try:
+                    result = subprocess.run(
+                        ["osascript", "-e", start_script],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    if "Yes" in result.stdout:
+                        self.start_background_checking()
+                        self.notification_manager.send_notification(
+                            title="Auto-Check Started",
+                            message=f"Now checking {len(self.sites)} sites every {self.check_interval}s",
+                        )
+                except Exception:
+                    pass  # User can start manually if needed
+
+        except Exception as exc:
+            logging.getLogger("onSite").error(
+                f"Error validating and reloading sites file: {exc}"
+            )
+            self.notification_manager.send_error_notification(
+                error_msg=f"Failed to reload sites file: {exc}"
+            )
+
+    def stop_file_monitoring(self):
+        """Stop monitoring the sites file"""
+        try:
+            if hasattr(self, "file_monitor_timer") and self.file_monitor_timer:
+                self.file_monitor_timer.stop()
+                self.file_monitor_timer = None
+                logging.getLogger("onSite").info("Stopped file monitoring")
+        except Exception as exc:
+            logging.getLogger("onSite").error(f"Error stopping file monitoring: {exc}")
+
     def change_interval(self, _):
         """Change the check interval"""
         response = rumps.Window(
@@ -873,28 +1150,81 @@ end tell"""
 
         if response.clicked and response.text:
             try:
-                interval = int(response.text)
-                if interval >= 60:  # Minimum 1 minute
-                    self.check_interval = interval
-                    self.save_config()
+                # Validate input format
+                if not response.text.strip():
+                    self.notification_manager.send_error_notification(
+                        error_msg="No interval provided"
+                    )
+                    return
 
-                    # Restart timer if active
-                    if self.timer:
+                # Parse and validate interval
+                try:
+                    interval = int(response.text.strip())
+                except ValueError:
+                    self.notification_manager.send_error_notification(
+                        error_msg="Interval must be a number"
+                    )
+                    return
+
+                # Validate interval range (60 seconds to 24 hours)
+                if interval < 60:
+                    self.notification_manager.send_error_notification(
+                        error_msg="Minimum interval is 60 seconds (1 minute)"
+                    )
+                    return
+                elif interval > 86400:  # 24 hours
+                    self.notification_manager.send_error_notification(
+                        error_msg="Maximum interval is 86400 seconds (24 hours)"
+                    )
+                    return
+
+                # Update the interval
+                old_interval = self.check_interval
+                self.check_interval = interval
+
+                # Save configuration
+                try:
+                    self.save_config()
+                except Exception as exc:
+                    # Restore old interval if save fails
+                    self.check_interval = old_interval
+                    logging.getLogger("onSite").error(
+                        f"Failed to save interval change: {exc}"
+                    )
+                    self.notification_manager.send_error_notification(
+                        error_msg=f"Could not save interval change: {exc}"
+                    )
+                    return
+
+                # Restart timer if active
+                if self.timer:
+                    try:
                         self.timer.stop()
                         self.start_background_checking()
+                    except Exception as exc:
+                        logging.getLogger("onSite").error(
+                            f"Error restarting timer: {exc}"
+                        )
 
-                    self.build_menu()
-                    self.notification_manager.send_notification(
-                        title="onSite",
-                        message="Interval updated",
-                        subtitle=f"Now checking every {interval} seconds",
-                    )
+                self.build_menu()
+
+                # Format interval for display
+                if interval >= 3600:
+                    display_text = f"{interval // 3600}h {(interval % 3600) // 60}m"
+                elif interval >= 60:
+                    display_text = f"{interval // 60}m {interval % 60}s"
                 else:
-                    self.notification_manager.send_notification(
-                        title="onSite",
-                        message="Invalid interval",
-                        subtitle="Minimum interval is 60 seconds",
-                    )
+                    display_text = f"{interval}s"
+
+                self.notification_manager.send_notification(
+                    title="onSite",
+                    message="Check interval updated",
+                    subtitle=f"Now checking every {display_text}",
+                )
+
+                logging.getLogger("onSite").info(
+                    f"Check interval updated: {old_interval}s → {interval}s"
+                )
             except ValueError:
                 self.notification_manager.send_notification(
                     title="onSite",
@@ -1050,10 +1380,8 @@ end tell"""
         """Show about dialog"""
         # Try to show a proper macOS About dialog
         try:
-            import subprocess
-
-            about_text = """onSite
-Version 1.0
+            # Create styled text with SF Pro Rounded for the title
+            about_text = """Version 1.0
 
 A lightweight menu bar application for monitoring HTTP endpoints
 with native macOS notifications and real-time status updates.
@@ -1064,15 +1392,23 @@ Copyright © June 2025. All rights reserved.
 
 Built with Python, rumps, and PyObjC for macOS integration."""
 
-            # Use AppleScript to show a proper dialog
+            # Escape the about text for AppleScript
             escaped_about = (
-                about_text.replace('"', '\\"')
+                about_text.replace("\\", "\\\\")
+                .replace('"', '\\"')
                 .replace("\n", "\\n")
-                .replace("\\", "\\\\")
             )
-            script = f"""tell application "System Events"
+
+            # Use display dialog which supports icon parameter better
+            if hasattr(self, "app_icon_path") and self.app_icon_path:
+                script = f"""tell application "System Events"
     activate
-    display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK" with icon note
+    display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK" with icon (POSIX file "{self.app_icon_path}")
+end tell"""
+            else:
+                script = f"""tell application "System Events"
+    activate
+    display dialog "{escaped_about}" with title "About onSite" buttons {{"OK"}} default button "OK"
 end tell"""
 
             subprocess.run(["osascript", "-e", script], check=False)
@@ -1085,64 +1421,272 @@ end tell"""
                 subtitle="Created by Thomas Juul Dyhr © June 2025",
             )
 
-    def load_sites(self):
-        """Load sites from configuration file with validation"""
-        if self.sites_file.exists():
+    def validate_json_file(
+        self, file_path: Path, schema_type: str
+    ) -> tuple[bool, str, dict]:
+        """
+        Validate JSON file format and content
+
+        Args:
+            file_path: Path to the JSON file
+            schema_type: Type of schema to validate ('sites' or 'config')
+
+        Returns:
+            tuple: (is_valid, error_message, data)
+        """
+        try:
+            # Check if file exists
+            if not file_path.exists():
+                return False, f"File does not exist: {file_path}", {}
+
+            # Check file size (prevent loading huge files)
+            if file_path.stat().st_size > 10 * 1024 * 1024:  # 10MB limit
+                return False, "File is too large (maximum 10MB)", {}
+
+            # Try to read and parse JSON
             try:
-                with open(self.sites_file, encoding="utf-8") as file:
+                with open(file_path, encoding="utf-8") as file:
                     data = json.load(file)
-                    raw_sites = data.get("sites", [])
+            except json.JSONDecodeError as exc:
+                return False, f"Invalid JSON format: {exc.msg} at line {exc.lineno}", {}
+            except UnicodeDecodeError as exc:
+                return False, f"File encoding error: {exc}", {}
 
-                    # Validate and normalize each site
-                    validated_sites = []
-                    invalid_sites = []
+            # Validate based on schema type
+            if schema_type == "sites":
+                return self._validate_sites_json(data)
+            elif schema_type == "config":
+                return self._validate_config_json(data)
+            else:
+                return False, f"Unknown schema type: {schema_type}", {}
 
-                    for site in raw_sites:
-                        if isinstance(site, str):
-                            is_valid, result = self.validate_url(site)
-                            if is_valid:
-                                # result is normalized URL
-                                validated_sites.append(result)
-                            else:
-                                # result is error message
-                                invalid_sites.append(f"{site} - {result}")
-                        else:
-                            invalid_sites.append(
-                                f"{site} - Invalid format (not a string)"
-                            )
+        except Exception as exc:
+            return False, f"Error validating JSON file: {exc}", {}
 
-                    self.sites = validated_sites
+    def _validate_sites_json(self, data: dict) -> tuple[bool, str, dict]:
+        """Validate sites.json structure and content"""
+        # Check if data is a dictionary
+        if not isinstance(data, dict):
+            return False, "Root element must be a JSON object", {}
 
-                    if invalid_sites:
-                        logging.getLogger("onSite").warning(
-                            "Found %d invalid sites in config:", len(invalid_sites)
-                        )
-                        for invalid in invalid_sites:
-                            logging.getLogger("onSite").warning("  - %s", invalid)
+        # Check for required 'sites' key
+        if "sites" not in data:
+            return False, "Missing required 'sites' key", {}
 
-                        # Show notification about invalid sites
-                        # Show notification about invalid sites
-                        if len(invalid_sites) <= 3:
-                            # Show all sites if few enough
-                            pass
-                        else:
-                            # Show first two + count for many sites
-                            pass
+        sites = data["sites"]
 
-                        self.notification_manager.send_notification(
-                            title="⚠️ Invalid Sites Found",
-                            message=(f"Removed {len(invalid_sites)} " "invalid sites"),
-                            subtitle="Check logs for details",
-                        )
+        # Check if sites is a list
+        if not isinstance(sites, list):
+            return False, "'sites' must be an array", {}
 
-                        # Save the cleaned sites list
-                        self.save_sites()
+        # Check sites count limit
+        if len(sites) > 100:
+            return False, "Too many sites (maximum 100 allowed)", {}
 
-                    logging.getLogger("onSite").info(
-                        "Loaded %d valid sites (removed %d invalid)",
-                        len(validated_sites),
-                        len(invalid_sites),
+        # Validate each site URL
+        for i, site in enumerate(sites):
+            if not isinstance(site, str):
+                return False, f"Site at index {i} is not a string", {}
+
+            # Basic URL validation (detailed validation will be done later)
+            if not site.strip():
+                return False, f"Site at index {i} is empty", {}
+
+            if len(site) > 2048:
+                return False, f"Site at index {i} is too long (max 2048 characters)", {}
+
+        return True, "Sites JSON is valid", data
+
+    def _validate_config_json(self, data: dict) -> tuple[bool, str, dict]:
+        """Validate config.json structure and content"""
+        # Check if data is a dictionary
+        if not isinstance(data, dict):
+            return False, "Root element must be a JSON object", {}
+
+        # Validate check_interval if present
+        if "check_interval" in data:
+            interval = data["check_interval"]
+            if not isinstance(interval, int) or interval < 60 or interval > 86400:
+                return (
+                    False,
+                    "check_interval must be an integer between 60 and 86400 seconds",
+                    {},
+                )
+
+        # Validate logging configuration if present
+        if "logging" in data:
+            logging_config = data["logging"]
+            if not isinstance(logging_config, dict):
+                return False, "logging configuration must be a JSON object", {}
+
+            # Validate log level
+            if "level" in logging_config:
+                level = logging_config["level"]
+                valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+                if not isinstance(level, str) or level.upper() not in valid_levels:
+                    return (
+                        False,
+                        f"log level must be one of: {', '.join(valid_levels)}",
+                        {},
                     )
+
+            # Validate console logging flag
+            if "console" in logging_config:
+                console = logging_config["console"]
+                if not isinstance(console, bool):
+                    return False, "console logging flag must be true or false", {}
+
+            # Validate rotation settings
+            if "rotation" in logging_config:
+                rotation = logging_config["rotation"]
+                if not isinstance(rotation, dict):
+                    return False, "rotation configuration must be a JSON object", {}
+
+                if "max_bytes" in rotation:
+                    max_bytes = rotation["max_bytes"]
+                    if (
+                        not isinstance(max_bytes, int)
+                        or max_bytes < 1024
+                        or max_bytes > 100 * 1024 * 1024
+                    ):
+                        return False, "max_bytes must be between 1KB and 100MB", {}
+
+                if "backup_count" in rotation:
+                    backup_count = rotation["backup_count"]
+                    if (
+                        not isinstance(backup_count, int)
+                        or backup_count < 1
+                        or backup_count > 20
+                    ):
+                        return False, "backup_count must be between 1 and 20", {}
+
+        # Validate debug_mode if present (legacy support)
+        if "debug_mode" in data:
+            debug_mode = data["debug_mode"]
+            if not isinstance(debug_mode, bool):
+                return False, "debug_mode must be true or false", {}
+
+        return True, "Config JSON is valid", data
+
+    def safe_json_save(
+        self, file_path: Path, data: dict, backup: bool = True
+    ) -> tuple[bool, str]:
+        """
+        Safely save JSON data with backup and validation
+
+        Args:
+            file_path: Path where to save the file
+            data: Data to save as JSON
+            backup: Whether to create a backup of existing file
+
+        Returns:
+            tuple: (success, error_message)
+        """
+        try:
+            # Create backup if file exists and backup is requested
+            if backup and file_path.exists():
+                backup_path = file_path.with_suffix(f"{file_path.suffix}.backup")
+                try:
+                    import shutil
+
+                    shutil.copy2(file_path, backup_path)
+                except Exception as exc:
+                    logging.getLogger("onSite").warning(
+                        f"Could not create backup: {exc}"
+                    )
+
+            # Write to temporary file first
+            temp_path = file_path.with_suffix(f"{file_path.suffix}.tmp")
+
+            try:
+                with open(temp_path, "w", encoding="utf-8") as file:
+                    json.dump(data, file, indent=2, ensure_ascii=False)
+
+                # Validate the temporary file
+                if file_path.name == "sites.json":
+                    is_valid, error, _ = self.validate_json_file(temp_path, "sites")
+                elif file_path.name == "config.json":
+                    is_valid, error, _ = self.validate_json_file(temp_path, "config")
+                else:
+                    is_valid, error = True, ""
+
+                if not is_valid:
+                    temp_path.unlink(missing_ok=True)  # Clean up temp file
+                    return False, f"Generated JSON is invalid: {error}"
+
+                # Atomic move from temp to final location
+                temp_path.replace(file_path)
+                return True, ""
+
+            except Exception as exc:
+                # Clean up temp file on error
+                temp_path.unlink(missing_ok=True)
+                raise exc
+
+        except Exception as exc:
+            return False, f"Error saving JSON file: {exc}"
+
+    def load_sites(self):
+        """Load sites from configuration file with enhanced validation"""
+        if self.sites_file.exists():
+            # Validate JSON file first
+            is_valid, error_message, data = self.validate_json_file(
+                self.sites_file, "sites"
+            )
+
+            if not is_valid:
+                logging.getLogger("onSite").error(
+                    f"Invalid sites.json file: {error_message}"
+                )
+                self.notification_manager.send_error_notification(
+                    error_msg=f"Sites configuration error: {error_message}"
+                )
+                self.sites = []
+                return
+
+            try:
+                raw_sites = data.get("sites", [])
+
+                # Validate and normalize each site
+                validated_sites = []
+                invalid_sites = []
+
+                for site in raw_sites:
+                    if isinstance(site, str):
+                        is_valid, result = self.validate_url(site)
+                        if is_valid:
+                            # result is normalized URL
+                            validated_sites.append(result)
+                        else:
+                            # result is error message
+                            invalid_sites.append(f"{site} - {result}")
+                    else:
+                        invalid_sites.append(f"{site} - Invalid format (not a string)")
+
+                self.sites = validated_sites
+
+                if invalid_sites:
+                    logging.getLogger("onSite").warning(
+                        "Found %d invalid sites in config:", len(invalid_sites)
+                    )
+                    for invalid in invalid_sites:
+                        logging.getLogger("onSite").warning("  - %s", invalid)
+
+                    # Show notification about invalid sites
+                    self.notification_manager.send_notification(
+                        title="⚠️ Invalid Sites Found",
+                        message=(f"Removed {len(invalid_sites)} " "invalid sites"),
+                        subtitle="Check logs for details",
+                    )
+
+                    # Save the cleaned sites list
+                    self.save_sites()
+
+                logging.getLogger("onSite").info(
+                    "Loaded %d valid sites (removed %d invalid)",
+                    len(validated_sites),
+                    len(invalid_sites),
+                )
 
             except Exception as exc:
                 logging.getLogger("onSite").error("Error loading sites: %s", exc)
@@ -1153,49 +1697,71 @@ end tell"""
             self.save_sites()
 
     def save_sites(self):
-        """Save sites to configuration file"""
+        """Save sites to configuration file with validation"""
         try:
-            with open(self.sites_file, "w", encoding="utf-8") as file:
-                json.dump({"sites": self.sites}, file, indent=2)
-            logging.getLogger("onSite").info("Saved %s sites", len(self.sites))
+            data = {"sites": self.sites}
+
+            success, error = self.safe_json_save(self.sites_file, data, backup=True)
+
+            if success:
+                logging.getLogger("onSite").info("Saved %s sites", len(self.sites))
+            else:
+                logging.getLogger("onSite").error(f"Error saving sites: {error}")
+                self.notification_manager.send_error_notification(
+                    error_msg=f"Could not save sites: {error}"
+                )
+
         except Exception as exc:
             logging.getLogger("onSite").error("Error saving sites: %s", exc)
+            self.notification_manager.send_error_notification(
+                error_msg=f"Unexpected error saving sites: {exc}"
+            )
 
     def load_config(self):
-        """Load application configuration"""
+        """Load application configuration with enhanced validation"""
         if self.config_file.exists():
+            # Validate JSON file first
+            is_valid, error_message, config = self.validate_json_file(
+                self.config_file, "config"
+            )
+
+            if not is_valid:
+                # Use print before logging is setup
+                print(f"Invalid config.json file: {error_message}")
+                print("Using default configuration")
+                # Continue with defaults
+                config = {}
+
             try:
-                with open(self.config_file, encoding="utf-8") as file:
-                    config = json.load(file)
-                    self.check_interval = config.get("check_interval", 900)
+                self.check_interval = config.get("check_interval", 900)
 
-                    # Load logging configuration with defaults
-                    logging_config = config.get("logging", {})
+                # Load logging configuration with defaults
+                logging_config = config.get("logging", {})
 
-                    # Basic logging settings
-                    self.log_level = logging_config.get("level", "INFO").upper()
-                    self.log_to_console = logging_config.get("console", False)
-                    self.log_format = logging_config.get(
-                        "format", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-                    )
-                    self.log_date_format = logging_config.get(
-                        "date_format", "%Y-%m-%d %H:%M:%S"
-                    )
+                # Basic logging settings
+                self.log_level = logging_config.get("level", "INFO").upper()
+                self.log_to_console = logging_config.get("console", False)
+                self.log_format = logging_config.get(
+                    "format", "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+                )
+                self.log_date_format = logging_config.get(
+                    "date_format", "%Y-%m-%d %H:%M:%S"
+                )
 
-                    # Log rotation settings
-                    rotation_config = logging_config.get("rotation", {})
-                    self.log_max_bytes = rotation_config.get(
-                        "max_bytes", 5 * 1024 * 1024
-                    )  # 5MB
-                    self.log_backup_count = rotation_config.get("backup_count", 5)
+                # Log rotation settings
+                rotation_config = logging_config.get("rotation", {})
+                self.log_max_bytes = rotation_config.get(
+                    "max_bytes", 5 * 1024 * 1024
+                )  # 5MB
+                self.log_backup_count = rotation_config.get("backup_count", 5)
 
-                    # Module-specific log levels
-                    self.module_log_levels = logging_config.get("module_levels", {})
+                # Module-specific log levels
+                self.module_log_levels = logging_config.get("module_levels", {})
 
-                    # Legacy debug_mode support
-                    self.debug_mode = config.get("debug_mode", False)
-                    if self.debug_mode and not hasattr(self, "log_level"):
-                        self.log_level = "DEBUG"
+                # Legacy debug_mode support
+                self.debug_mode = config.get("debug_mode", False)
+                if self.debug_mode and not hasattr(self, "log_level"):
+                    self.log_level = "DEBUG"
 
             except Exception as exc:
                 # Use print before logging is setup
@@ -1219,7 +1785,7 @@ end tell"""
             self.module_log_levels = {}
 
     def save_config(self):
-        """Save application configuration"""
+        """Save application configuration with validation"""
         try:
             # Build config dictionary
             config = {
@@ -1247,12 +1813,82 @@ end tell"""
             if hasattr(self, "debug_mode"):
                 config["debug_mode"] = self.debug_mode
 
-            with open(self.config_file, "w", encoding="utf-8") as file:
-                json.dump(config, file, indent=2)
+            success, error = self.safe_json_save(self.config_file, config, backup=True)
 
-            logging.getLogger("onSite").debug("Configuration saved")
+            if success:
+                logging.getLogger("onSite").debug("Configuration saved")
+            else:
+                logging.getLogger("onSite").error(f"Error saving config: {error}")
+                self.notification_manager.send_error_notification(
+                    error_msg=f"Could not save configuration: {error}"
+                )
+
         except Exception as exc:
             logging.getLogger("onSite").error("Error saving config: %s", exc)
+            self.notification_manager.send_error_notification(
+                error_msg=f"Unexpected error saving config: {exc}"
+            )
+
+    def validate_sites_file_after_edit(self):
+        """Validate and reload sites file after user editing"""
+        try:
+            # Validate the sites file
+            is_valid, error_message, data = self.validate_json_file(
+                self.sites_file, "sites"
+            )
+
+            if not is_valid:
+                # Show validation error to user
+                error_script = f"""tell application "System Events"
+    activate
+    display dialog "Sites file validation failed:\\n\\n{error_message.replace('"', '\\"')}\\n\\nPlease fix the file and save again, or restore from backup." with title "Validation Error - onSite" buttons {{"OK"}} default button "OK" with icon stop
+end tell"""
+
+                try:
+                    subprocess.run(["osascript", "-e", error_script], check=False)
+                except Exception:
+                    # Fallback notification
+                    self.notification_manager.send_error_notification(
+                        error_msg=f"Sites file invalid: {error_message[:100]}"
+                    )
+
+                logging.getLogger("onSite").error(
+                    f"Sites file validation failed: {error_message}"
+                )
+                return
+
+            # File is valid, reload sites
+            old_sites_count = len(self.sites)
+            self.load_sites()
+            new_sites_count = len(self.sites)
+
+            # Rebuild menu with new sites
+            self.build_menu()
+            self.update_status_icon()
+
+            # Notify user of successful update
+            if new_sites_count != old_sites_count:
+                change_text = f"Updated: {old_sites_count} → {new_sites_count} sites"
+            else:
+                change_text = f"Reloaded {new_sites_count} sites"
+
+            self.notification_manager.send_notification(
+                title="✅ Sites Updated",
+                message=change_text,
+                subtitle="File validation successful",
+            )
+
+            logging.getLogger("onSite").info(
+                f"Sites file reloaded successfully: {change_text}"
+            )
+
+        except Exception as exc:
+            logging.getLogger("onSite").error(
+                f"Error validating sites file after edit: {exc}"
+            )
+            self.notification_manager.send_error_notification(
+                error_msg=f"Failed to validate edited file: {exc}"
+            )
 
 
 if __name__ == "__main__":

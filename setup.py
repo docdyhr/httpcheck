@@ -25,11 +25,12 @@ DATA_FILES = [
 ]
 
 # Resources for the app bundle
-RESOURCES = []
+RESOURCES = ["images/Icon.icns"]
 
 OPTIONS = {
     "argv_emulation": False,
-    "iconfile": None,  # Add path to .icns file if you have one
+    "iconfile": "images/Icon.icns",  # Use the custom icon for the app bundle
+    "semi_standalone": False,  # Include Python framework
     "plist": {
         "CFBundleName": "onSite",
         "CFBundleDisplayName": "onSite",
@@ -60,6 +61,8 @@ OPTIONS = {
         "AppKit",
         "CoreFoundation",
         "objc",
+        "pkg_resources",
+        "setuptools",
     ],
     "includes": [
         "httpcheck",
@@ -97,8 +100,6 @@ setup(
         "rumps>=0.4.0",
         "requests>=2.32.0",
         "pyobjc-framework-Cocoa>=10.0",
-        "pyobjc-framework-Foundation>=10.0",
-        "pyobjc-framework-AppKit>=10.0",
         "pyobjc-core>=10.0",
     ],
     python_requires=">=3.9",

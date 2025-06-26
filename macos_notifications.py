@@ -198,10 +198,14 @@ class MacOSNotificationManager:
         self, site: str, status_code: int, callback: Callable = None
     ):
         """Send a notification for a site being down"""
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%H:%M")
+
         return self.send_notification(
             title="🔴 Site Down",
             message=f"{site} is unreachable",
-            subtitle=f"Status code: {status_code}",
+            subtitle=f"Status code: {status_code} at {timestamp}",
             sound=NotificationSound.BASSO,
             action_button="Check Now",
             other_button="Dismiss",
@@ -214,10 +218,14 @@ class MacOSNotificationManager:
         self, site: str, status_code: int, callback: Callable = None
     ):
         """Send a notification for a site recovering"""
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%H:%M")
+
         return self.send_notification(
             title="🟢 Site Recovered",
             message=f"{site} is back online",
-            subtitle=f"Status code: {status_code}",
+            subtitle=f"Status code: {status_code} at {timestamp}",
             sound=NotificationSound.GLASS,
             action_button="View",
             identifier=f"recovery_{site}",
@@ -229,23 +237,37 @@ class MacOSNotificationManager:
         self, total: int, failed: int, callback: Callable = None
     ):
         """Send a summary notification after checking all sites"""
-        if failed == 0:
-            title = "✅ All Sites OK"
-            message = f"Checked {total} sites, all are healthy"
-            sound = NotificationSound.PURR
-        else:
-            title = "⚠️ Sites Have Issues"
-            message = f"{failed} of {total} sites are down"
-            sound = NotificationSound.SOSUMI
+        try:
+            from datetime import datetime
 
-        return self.send_notification(
-            title=title,
-            message=message,
-            sound=sound,
-            action_button="View Details" if failed > 0 else None,
-            identifier="check_complete",
-            callback=callback,
-        )
+            timestamp = datetime.now().strftime("%H:%M")
+
+            if failed == 0:
+                title = "All Sites OK"
+                message = f"Checked {total} sites, all are healthy at {timestamp}"
+                sound = NotificationSound.PURR
+            else:
+                title = "Sites Have Issues"
+                message = f"{failed} of {total} sites are down at {timestamp}"
+                sound = NotificationSound.SOSUMI
+
+            logging.getLogger("onSite").info(
+                f"Sending summary notification: {title} - {message}"
+            )
+
+            return self.send_notification(
+                title=title,
+                message=message,
+                sound=sound,
+                action_button="View Details" if failed > 0 else None,
+                identifier="check_complete",
+                callback=callback,
+            )
+        except Exception as exc:
+            logging.getLogger("onSite").error(
+                f"Error in send_check_complete_summary: {exc}"
+            )
+            return False
 
     def send_error_notification(self, error_msg: str, site: str = None):
         """Send an error notification"""
