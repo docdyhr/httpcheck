@@ -45,11 +45,11 @@ class NotificationDelegate(NSObject):
 
     def init(self):
         """Initialize the delegate"""
-        self = objc.super(NotificationDelegate, self).init()
-        if self is None:
+        init_self = objc.super(NotificationDelegate, self).init()
+        if init_self is None:
             return None
-        self.callbacks = {}
-        return self
+        init_self.callbacks = {}
+        return init_self
 
     def userNotificationCenter_didActivateNotification_(self, center, notification):
         """Handle notification activation (click)"""

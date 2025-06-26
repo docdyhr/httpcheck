@@ -8,7 +8,7 @@ from setuptools import setup
 # Read version from httpcheck.py
 version = "1.3.0"
 try:
-    with open("httpcheck.py") as f:
+    with open("httpcheck.py", encoding="utf-8") as f:
         for line in f:
             if line.startswith("VERSION = "):
                 version = line.split("=")[1].strip().strip("\"'")

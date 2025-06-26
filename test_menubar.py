@@ -8,6 +8,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+# pylint: disable=wrong-import-position
 from macos_notifications import MacOSNotificationManager
 
 

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-import rumps
+import rumps  # pylint: disable=import-error
 
 # Import core functionality from main httpcheck module
 import httpcheck
@@ -39,6 +39,13 @@ class HTTPCheckApp(rumps.App):
         # File monitoring variables
         self.file_monitor_timer = None
         self.last_file_mtime = 0
+
+        # Icon and UI attributes
+        self.title = None
+        self.template = False
+        self.app_icon_path = None
+        self.log_level = "INFO"
+        self.log_to_console = False
 
         # Setup paths following macOS best practices
         self.config_dir = Path.home() / ".httpcheck"
@@ -313,6 +320,7 @@ class HTTPCheckApp(rumps.App):
 
     def build_menu(self):
         """Build the menu structure"""
+        # pylint: disable=no-member
         self.menu.clear()
 
         # Status section
@@ -392,7 +400,6 @@ class HTTPCheckApp(rumps.App):
     def setup_icon(self):
         """Setup the menu bar icon from Icon.icns file"""
         try:
-            import os
 
             # Try to find the icon file
             icon_path = None
@@ -638,8 +645,6 @@ end tell
 return userInput"""
 
         try:
-            import subprocess
-
             logging.getLogger("onSite").debug(
                 f"Executing AppleScript: {script[:100]}..."
             )
@@ -868,7 +873,6 @@ end tell"""
 end tell"""
 
         try:
-            import subprocess
 
             result = subprocess.run(
                 ["osascript", "-e", script], capture_output=True, text=True, check=True
@@ -1098,9 +1102,9 @@ end tell"""
 
             # If we added new sites and auto-check is off, ask to start it
             if added_sites and not self.timer and len(self.sites) > 0:
-                start_script = f"""tell application "System Events"
+                start_script = """tell application "System Events"
     activate
-    display dialog "New sites added! Would you like to start automatic checking?" with title "Start Auto-Check - onSite" buttons {{"Yes", "No"}} default button "Yes" with icon question
+    display dialog "New sites added! Would you like to start automatic checking?" with title "Start Auto-Check - onSite" buttons {"Yes", "No"} default button "Yes" with icon question
 end tell
 return result"""
 
@@ -1262,7 +1266,6 @@ return result"""
 end tell"""
 
         try:
-            import subprocess
 
             result = subprocess.run(
                 ["osascript", "-e", script], capture_output=True, text=True, check=True
@@ -1338,12 +1341,12 @@ end tell"""
         """Open the log file in Console.app"""
         try:
             # First try to open in Console.app (macOS system log viewer)
-            import subprocess
 
             result = subprocess.run(
                 ["open", "-a", "Console", str(self.log_file)],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             if result.returncode == 0:
                 self.notification_manager.send_notification(
@@ -1894,10 +1897,11 @@ end tell"""
 if __name__ == "__main__":
     # Check if running on macOS
     import platform
+    import sys
 
     if platform.system() != "Darwin":
         print("This menu bar app is only supported on macOS")
-        exit(1)
+        sys.exit(1)
 
     # Run the app
     HTTPCheckApp().run()
