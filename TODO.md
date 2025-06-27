@@ -1,91 +1,142 @@
 # Todo list for httpcheck
 
-## High Priority
+## 🚀 PHASE 1: Foundation Stabilization (Weeks 1-3) - CURRENT PRIORITY
 
-* Code Organization
-  * Modularize the codebase into separate files
-    * `tld_manager.py` - TLD validation functionality
-    * `file_handler.py` - File input processing
-    * `site_checker.py` - HTTP request and status checking
-    * `output_formatter.py` - Result formatting and display
-    * `notification.py` - System notifications
-  * Create a proper package structure with `__init__.py`
-  * Implement class-based approach for main functionality
+### Week 1: Security & Dependencies (IMMEDIATE)
+- [ ] **CRITICAL:** Replace pickle with JSON for TLD cache serialization
+- [ ] **HIGH:** Consolidate requirements files into pyproject.toml
+- [ ] **HIGH:** Audit and remove unused dependencies
+- [ ] **MEDIUM:** Fix any security vulnerabilities in dependencies
 
-* Essential Features
-  * Add JSON output format option
-  * Support for custom HTTP headers
-  * Add colorized terminal output (using colorama)
-  * Implement CSV export for results
+### Week 2-3: Code Modularization (IN PROGRESS)
+- [ ] **HIGH:** Create `httpcheck/` package directory structure
+- [ ] **HIGH:** Extract `tld_manager.py` from main file (lines 600-800)
+- [ ] **HIGH:** Extract `file_handler.py` for input processing (lines 200-400)
+- [ ] **HIGH:** Extract `site_checker.py` for HTTP operations (lines 400-600)
+- [ ] **HIGH:** Extract `output_formatter.py` for result display (lines 800-1000)
+- [ ] **HIGH:** Extract `notification.py` for system notifications (lines 1000-1100)
+- [ ] **HIGH:** Create `common.py` for shared utilities and constants
+- [ ] **HIGH:** Update main `httpcheck.py` to use modular imports
+- [ ] **CRITICAL:** Ensure backward compatibility maintained
 
-* Security Improvements
-  * Replace pickle with JSON for cache serialization
-  * Add SSL verification options
+## 🧪 PHASE 2: Testing & Quality (Weeks 4-6)
 
-* Testing & Packaging
-  * Create basic unit tests for core functionality
-  * Implement proper package setup with setup.py or pyproject.toml
-  * Add requirements.txt with version constraints
+### Week 4: Test Infrastructure
+- [ ] **HIGH:** Set up pytest framework and configuration
+- [ ] **HIGH:** Create `tests/` directory structure
+- [ ] **MEDIUM:** Add test fixtures and mock utilities
+- [ ] **MEDIUM:** Configure coverage reporting (target >70%)
 
-## Medium Priority
+### Week 5-6: Test Implementation
+- [ ] **HIGH:** Unit tests for `tld_manager.py`
+- [ ] **HIGH:** Unit tests for `file_handler.py`
+- [ ] **HIGH:** Unit tests for `site_checker.py`
+- [ ] **HIGH:** Unit tests for `output_formatter.py`
+- [ ] **MEDIUM:** Integration tests for CLI interface
+- [ ] **MEDIUM:** Mock network requests for reliable testing
+- [ ] **LOW:** Add CI/CD test automation enhancement
 
-* Performance Improvements
-  * Implement asynchronous I/O for network operations
-  * Add connection pooling for better resource management
-  * Implement rate limiting to avoid overwhelming servers
+## 🎯 PHASE 3: Core Features (Weeks 7-10)
 
-* Configuration Management
-  * Add configuration file support
-  * Allow for profile-based configurations
+### Week 7-8: Output Formats
+- [ ] **HIGH:** Implement JSON output format (`--output json`)
+- [ ] **HIGH:** Add CSV export capability (`--output csv`)
+- [ ] **MEDIUM:** Enhance table formatting options
 
-* Extended Protocol Support
-  * HTTP/2 and HTTP/3 protocol support
-  * Add support for different authentication methods
-  * Proxy support for all requests
+### Week 9-10: Request Customization
+- [ ] **HIGH:** Support custom HTTP headers (`-H` flag)
+- [ ] **MEDIUM:** Add request timeout configuration
+- [ ] **MEDIUM:** Implement retry logic improvements
+- [ ] **LOW:** Add SSL verification options (`--no-verify-ssl`)
 
-* Cookie & Session Handling
-  * Add cookie handling options
-  * Support persistent sessions across requests
+## ⚡ PHASE 4: Performance & Advanced Features (Weeks 11-16)
 
-* Advanced Output Formats
-  * Add HTML report export
-  * Add Markdown report export
-  * Add XML output format
+### Week 11-12: Performance Optimization
+- [ ] **HIGH:** Implement async I/O for concurrent requests
+- [ ] **MEDIUM:** Add connection pooling
+- [ ] **MEDIUM:** Implement rate limiting (`--rate-limit`)
+- [ ] **LOW:** Optimize memory usage
 
-* CI/CD Integration
-  * Add GitHub Actions for CI/CD
-  * Add mock tests for network operations
+### Week 13-14: Configuration Management
+- [ ] **HIGH:** Add configuration file support (~/.httpcheck.conf)
+- [ ] **MEDIUM:** Support environment variable configuration
+- [ ] **LOW:** Add profile-based configurations
 
-## Future Enhancements
+### Week 15-16: Advanced Features
+- [ ] **MEDIUM:** Colorized terminal output (using colorama)
+- [ ] **MEDIUM:** Enhanced redirect handling
+- [ ] **LOW:** Content verification capabilities
+- [ ] **LOW:** Basic monitoring mode
 
-* Monitoring Capabilities
-  * Website monitoring mode with interval checks
-  * Store historical data in SQLite database
-  * Alert on status changes
-  * Threshold alerts for response times
+## 🔮 FUTURE ENHANCEMENTS (v1.5.0+)
 
-* Content Verification
-  * Check for specific content in responses
-  * Verify page title, meta tags, or specific elements
-  * Content diff between checks
+### Monitoring Capabilities
+- [ ] Website monitoring mode with interval checks
+- [ ] Store historical data in SQLite database
+- [ ] Alert on status changes
+- [ ] Threshold alerts for response times
 
-* Performance Metrics
-  * Add detailed timing measurements (DNS, SSL, TTFB)
-  * Response time statistics and trending
-  * Response size tracking and limits
+### Content Verification
+- [ ] Check for specific content in responses
+- [ ] Verify page title, meta tags, or specific elements
+- [ ] Content diff between checks
 
-* Integrations
-  * Prometheus metrics format support
-  * Webhook notifications
-  * Integration with messaging platforms (Slack, Discord)
-  * Email notifications for critical alerts
+### Performance Metrics
+- [ ] Add detailed timing measurements (DNS, SSL, TTFB)
+- [ ] Response time statistics and trending
+- [ ] Response size tracking and limits
 
-* Advanced Features (2.0 vision)
-  * Browser-like validation (using headless Chrome/Firefox)
-  * API endpoint validation (JSON Schema, OpenAPI)
-  * Load testing capabilities
-  * Custom scripting support for complex validation
-  * Machine learning for anomaly detection
+### Integrations
+- [ ] Prometheus metrics format support
+- [ ] Webhook notifications
+- [ ] Integration with messaging platforms (Slack, Discord)
+- [ ] Email notifications for critical alerts
+
+### Advanced Features (v2.0 vision)
+- [ ] Browser-like validation (using headless Chrome/Firefox)
+- [ ] API endpoint validation (JSON Schema, OpenAPI)
+- [ ] Load testing capabilities
+- [ ] Custom scripting support for complex validation
+- [ ] Machine learning for anomaly detection
+
+## 📋 DEVELOPMENT NOTES
+
+### Current Status
+- **Version**: 1.3.0
+- **Main File**: httpcheck.py (1,151 lines)
+- **Target Version**: 1.4.0
+- **Timeline**: 16 weeks (4 months)
+
+### Key Priorities
+1. **IMMEDIATE**: Security fixes (pickle → JSON)
+2. **CRITICAL**: Code modularization
+3. **HIGH**: Test coverage >70%
+4. **MEDIUM**: New output formats (JSON, CSV)
+
+### Success Metrics
+- [ ] Maintain pylint 10.0/10 score
+- [ ] Achieve >70% test coverage
+- [ ] Zero breaking changes to CLI
+- [ ] All Phase 1 tasks completed by Week 3
+
+### Dependencies to Remove
+- [ ] Audit pickle usage
+- [ ] Check for unused imports
+- [ ] Consolidate requirements files
+- [ ] Remove development-only dependencies from production
+
+### Architecture Target
+```
+httpcheck/
+├── __init__.py
+├── common.py
+├── tld_manager.py
+├── file_handler.py
+├── site_checker.py
+├── output_formatter.py
+├── notification.py
+└── config.py
+```
 
 ## Completed
 

@@ -11,12 +11,28 @@
 
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
-* Name: httpcheck (CLI) / onSite (Menu Bar App)
-* Version: 1.3.0
-* Programming language: Python 3
-* Author: Thomas Juul Dyhr
-* Purpose: CLI tool to Check Website HTTP Status + macOS Menu Bar App
-* Release date: 29 April 2025
+* **Name**: httpcheck (CLI) / onSite (Menu Bar App)
+* **Current Version**: 1.3.1 (Security and Stability Improvements)
+* **Target Version**: 1.4.0 (Major Refactoring in Progress)
+* **Programming Language**: Python 3.9+
+* **Author**: Thomas Juul Dyhr
+* **Purpose**: Advanced HTTP status checker with monitoring capabilities
+* **Development Status**: Active - See [ROADMAP.md](ROADMAP.md) for development plan
+
+## 🚀 Development Status
+
+**httpcheck is currently undergoing major refactoring for v1.4.0**
+
+- **Phase 1 (Weeks 1-3)**: Foundation Stabilization - Security fixes and code modularization
+- **Phase 2 (Weeks 4-6)**: Testing Framework - Comprehensive test coverage >70%
+- **Phase 3 (Weeks 7-10)**: Core Features - JSON/CSV output, custom headers
+- **Phase 4 (Weeks 11-16)**: Performance & Advanced Features - Async I/O, configuration files
+
+See detailed plans in:
+- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - Executive overview and timeline
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Technical implementation guide
+- [TODO.md](TODO.md) - Current prioritized task list
+- [ROADMAP.md](ROADMAP.md) - Long-term vision through v2.0.0
 
 ## usage:
 httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]

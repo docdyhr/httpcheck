@@ -1,170 +1,247 @@
-# ROADMAP.md
-
 # httpcheck Development Roadmap
 
-This roadmap outlines the planned development path for httpcheck, prioritizing features and improvements based on importance, feasibility, and logical dependencies.
+This roadmap outlines the planned development path for httpcheck, focusing on technical debt reduction, feature enhancement, and long-term architectural improvements.
 
-## Version 1.4.0 - Code Organization & Essential Improvements (Target: June 30, 2025)
+## 🚀 Version 1.4.0 - Foundation & Core Features (Target: October 31, 2025)
 
-The focus of this milestone is to restructure the codebase for better maintainability while adding the most requested features.
+**Duration**: 16 weeks (4 months)
+**Focus**: Technical debt reduction, code modularization, and essential feature delivery
 
-### Code Organization (2 weeks)
-- [ ] **High Priority:** Modularize the codebase into separate files
+### 📋 Phase 1: Foundation Stabilization (Weeks 1-3)
+**Goal**: Eliminate technical debt and establish solid foundation
+
+#### Week 1: Security & Dependencies
+- [ ] **CRITICAL:** Replace pickle with JSON for TLD cache serialization
+- [ ] **HIGH:** Consolidate requirements files into pyproject.toml
+- [ ] **HIGH:** Audit and remove unused dependencies
+- [ ] **MEDIUM:** Fix security vulnerabilities in dependencies
+
+#### Week 2-3: Code Modularization
+- [ ] **HIGH:** Create `httpcheck/` package directory structure
+- [ ] **HIGH:** Extract core modules from monolithic file (1,151 lines):
   - `tld_manager.py` - TLD validation functionality
   - `file_handler.py` - File input processing
   - `site_checker.py` - HTTP request and status checking
   - `output_formatter.py` - Result formatting and display
   - `notification.py` - System notifications
-- [ ] **High Priority:** Create a proper package structure with `__init__.py`
-- [ ] **Medium Priority:** Implement a class-based approach for the main functionality
+  - `common.py` - Shared utilities and constants
+- [ ] **CRITICAL:** Maintain 100% backward compatibility
+- [ ] **HIGH:** Update main `httpcheck.py` to use modular imports
 
-### Essential Features (3 weeks)
-- [ ] **High Priority:** Add JSON output format
-  ```
-  httpcheck --output json example.com
-  ```
-- [ ] **High Priority:** Support for custom HTTP headers
-  ```
-  httpcheck -H "User-Agent: CustomAgent" -H "Authorization: Bearer token" example.com
-  ```
-- [ ] **Medium Priority:** Colorized terminal output (using colorama)
-- [ ] **Medium Priority:** Export results to CSV format
+### 🧪 Phase 2: Testing & Quality (Weeks 4-6)
+**Goal**: Establish comprehensive testing framework
 
-### Security Improvements (1 week)
-- [ ] **High Priority:** Replace pickle with JSON for cache serialization
-- [ ] **Medium Priority:** Add SSL verification options
-  ```
-  httpcheck --no-verify-ssl example.com
-  ```
+#### Week 4: Test Infrastructure
+- [ ] **HIGH:** Set up pytest framework and configuration
+- [ ] **HIGH:** Create comprehensive `tests/` directory structure
+- [ ] **MEDIUM:** Add test fixtures and mock utilities
+- [ ] **MEDIUM:** Configure coverage reporting (target >70%)
 
-### Testing & Packaging (2 weeks)
-- [ ] **High Priority:** Create basic unit tests for core functionality
-- [ ] **High Priority:** Implement proper package setup with setup.py or pyproject.toml
-- [ ] **Medium Priority:** Add requirements.txt with version constraints
+#### Week 5-6: Test Implementation
+- [ ] **HIGH:** Unit tests for all extracted modules
+- [ ] **MEDIUM:** Integration tests for CLI interface
+- [ ] **MEDIUM:** Mock network requests for reliable testing
+- [ ] **LOW:** Enhance CI/CD test automation
 
-## Version 1.5.0 - Performance & Advanced Features (Target: September 30, 2025)
+### 🎯 Phase 3: Core Features (Weeks 7-10)
+**Goal**: Implement high-priority user-requested features
 
-This milestone focuses on performance improvements and adding more advanced features.
+#### Week 7-8: Output Formats
+- [ ] **HIGH:** JSON output format (`--output json`)
+- [ ] **HIGH:** CSV export capability (`--output csv`)
+- [ ] **MEDIUM:** Enhanced table formatting options
 
-### Performance Improvements (3 weeks)
-- [ ] **High Priority:** Implement asynchronous I/O for network operations
-  ```python
-  async def check_sites_async(sites, timeout=5.0):
-      # Asynchronous implementation
-  ```
-- [ ] **Medium Priority:** Add connection pooling for better resource management
-- [ ] **Medium Priority:** Implement rate limiting to avoid overwhelming servers
-  ```
-  httpcheck --rate-limit 10 @large-site-list.txt
-  ```
+#### Week 9-10: Request Customization
+- [ ] **HIGH:** Custom HTTP headers support (`-H` flag)
+- [ ] **MEDIUM:** Advanced timeout configuration
+- [ ] **MEDIUM:** Improved retry logic
+- [ ] **LOW:** SSL verification options (`--no-verify-ssl`)
 
-### Advanced Features (4 weeks)
-- [ ] **High Priority:** Configuration file support
-  ```
-  # ~/.httpcheck.conf
-  [defaults]
-  timeout = 10
-  retries = 3
-  ```
-- [ ] **Medium Priority:** HTTP/2 and HTTP/3 protocol support
-- [ ] **Medium Priority:** Proxy support
-  ```
-  httpcheck --proxy http://proxy.example.com:8080 example.com
-  ```
-- [ ] **Medium Priority:** Cookie handling options
-  ```
-  httpcheck --cookie "session=abc123" example.com
-  ```
+### ⚡ Phase 4: Performance & Advanced Features (Weeks 11-16)
+**Goal**: Optimize performance and add advanced capabilities
 
-### Extended Output Formats (2 weeks)
-- [ ] **Medium Priority:** Add HTML report export
-- [ ] **Medium Priority:** Add Markdown report export
-- [ ] **Low Priority:** Add XML output format
+#### Week 11-12: Performance Optimization
+- [ ] **HIGH:** Async I/O implementation for concurrent requests
+- [ ] **MEDIUM:** Connection pooling for resource efficiency
+- [ ] **MEDIUM:** Rate limiting (`--rate-limit`) to prevent overload
+- [ ] **LOW:** Memory usage optimization
 
-### Testing & CI/CD (3 weeks)
-- [ ] **High Priority:** Expand test coverage (aim for >70%)
-- [ ] **Medium Priority:** Add GitHub Actions for CI/CD
-- [ ] **Medium Priority:** Add mock tests for network operations
+#### Week 13-14: Configuration Management
+- [ ] **HIGH:** Configuration file support (~/.httpcheck.conf)
+- [ ] **MEDIUM:** Environment variable configuration
+- [ ] **LOW:** Profile-based configurations
 
-## Version 1.6.0 - Monitoring & Integration (Target: December 31, 2025)
+#### Week 15-16: Advanced Features
+- [ ] **MEDIUM:** Colorized terminal output (using colorama)
+- [ ] **MEDIUM:** Enhanced redirect handling
+- [ ] **LOW:** Content verification capabilities
+- [ ] **LOW:** Basic monitoring mode
 
-This milestone focuses on monitoring capabilities and integrations with other systems.
+### 📊 Success Metrics for v1.4.0
+- [ ] Maintain pylint score of 10.0/10
+- [ ] Achieve >70% test coverage
+- [ ] Zero breaking changes to existing CLI
+- [ ] All core modules extracted and functional
+- [ ] JSON and CSV output formats working
+- [ ] Custom headers functionality implemented
 
-### Monitoring Capabilities (4 weeks)
-- [ ] **High Priority:** Website monitoring mode with interval checks
-  ```
+## 🚀 Version 1.5.0 - Advanced Features & Integration (Target: March 31, 2026)
+
+**Duration**: 12 weeks (3 months)
+**Focus**: Performance optimization, advanced features, and system integrations
+
+### Performance & Scalability (Weeks 1-4)
+- [ ] **HIGH:** Enhanced async I/O with connection pooling
+- [ ] **HIGH:** Advanced rate limiting with burst control
+- [ ] **MEDIUM:** HTTP/2 and HTTP/3 protocol support
+- [ ] **MEDIUM:** Proxy chain support with authentication
+- [ ] **LOW:** Memory usage optimization for large-scale monitoring
+
+### Extended Output & Reporting (Weeks 5-6)
+- [ ] **HIGH:** HTML report export with interactive charts
+- [ ] **MEDIUM:** Markdown report export for documentation
+- [ ] **MEDIUM:** XML output format for system integration
+- [ ] **LOW:** PDF report generation
+
+### Advanced Request Features (Weeks 7-8)
+- [ ] **HIGH:** Cookie and session handling
+- [ ] **HIGH:** Authentication methods (Basic, Bearer, API keys)
+- [ ] **MEDIUM:** Request body support for POST/PUT operations
+- [ ] **LOW:** Certificate client authentication
+
+### System Integration (Weeks 9-12)
+- [ ] **HIGH:** Prometheus metrics export
+- [ ] **HIGH:** Webhook notifications with templating
+- [ ] **MEDIUM:** Database storage (SQLite/PostgreSQL)
+- [ ] **MEDIUM:** REST API for programmatic access
+- [ ] **LOW:** Message queue integration (Redis, RabbitMQ)
+
+## 🔍 Version 1.6.0 - Monitoring & Analytics (Target: July 31, 2026)
+
+**Duration**: 10 weeks (2.5 months)
+**Focus**: Continuous monitoring, analytics, and alerting capabilities
+
+### Monitoring Infrastructure (Weeks 1-3)
+- [ ] **HIGH:** Continuous monitoring mode with configurable intervals
+  ```bash
   httpcheck --monitor --interval 15m example.com
   ```
-- [ ] **Medium Priority:** Store historical data in SQLite database
-- [ ] **Medium Priority:** Alert on status changes
-- [ ] **Low Priority:** Threshold alerts for response times
+- [ ] **HIGH:** Historical data storage with configurable retention
+- [ ] **MEDIUM:** Alert system with customizable thresholds
+- [ ] **MEDIUM:** Status change notifications with templating
+- [ ] **LOW:** Monitoring dashboard (web interface)
 
-### Content Verification (3 weeks)
-- [ ] **Medium Priority:** Check for specific content in responses
+### Content Verification (Weeks 4-5)
+- [ ] **HIGH:** Content pattern matching and validation
+  ```bash
+  httpcheck --content-check "Welcome to Example" example.com
   ```
-  httpcheck --content "Welcome to Example" example.com
-  ```
-- [ ] **Medium Priority:** Verify page title, meta tags, or specific elements
-- [ ] **Low Priority:** Content diff between checks
+- [ ] **MEDIUM:** Page title and meta tag verification
+- [ ] **MEDIUM:** Content change detection and diff reporting
+- [ ] **LOW:** Screenshot comparison for visual changes
 
-### Performance Metrics (3 weeks)
-- [ ] **High Priority:** Add detailed timing measurements
+### Performance Analytics (Weeks 6-7)
+- [ ] **HIGH:** Detailed timing breakdowns:
   - DNS resolution time
   - SSL handshake time
-  - Time to first byte
+  - Time to first byte (TTFB)
   - Content download time
-- [ ] **Medium Priority:** Response time statistics and trending
-- [ ] **Low Priority:** Response size tracking and limits
+- [ ] **MEDIUM:** Response time statistics and trending
+- [ ] **MEDIUM:** Performance baselines and anomaly detection
+- [ ] **LOW:** Response size tracking and optimization alerts
 
-### Integrations (4 weeks)
-- [ ] **Medium Priority:** Prometheus metrics format support
-  ```
-  httpcheck --prometheus-metrics example.com
-  ```
-- [ ] **Medium Priority:** Webhook notifications
-  ```
-  httpcheck --webhook https://hooks.slack.com/services/X/Y/Z example.com
-  ```
-- [ ] **Low Priority:** Integration with messaging platforms (Slack, Discord, etc.)
-- [ ] **Low Priority:** Email notifications for critical alerts
+### Advanced Alerting (Weeks 8-10)
+- [ ] **HIGH:** Multi-channel alert delivery (email, SMS, webhook)
+- [ ] **HIGH:** Alert escalation and acknowledgment system
+- [ ] **MEDIUM:** Custom alert rules with complex conditions
+- [ ] **MEDIUM:** Alert fatigue prevention with smart grouping
+- [ ] **LOW:** Integration with PagerDuty, OpsGenie
 
-## Version 2.0.0 - Future Vision (Beyond January 2026)
+## 🌟 Version 2.0.0 - Next Generation Platform (Target: 2027)
 
-### Advanced Features
-- [ ] Browser-like validation (using headless Chrome/Firefox)
-- [ ] API endpoint validation (JSON Schema, OpenAPI)
-- [ ] Load testing capabilities
-- [ ] Custom scripting support for complex validation scenarios
-- [ ] Machine learning for anomaly detection in response patterns
+**Focus**: Revolutionary capabilities and platform transformation
 
-### Platform Support
-- [ ] Web UI for configuration and monitoring
-- [ ] Distributed checking from multiple locations
-- [ ] Cloud service integration (AWS, Azure, GCP)
-- [ ] Mobile app for notifications and status checking
+### AI-Powered Features
+- [ ] **HIGH:** Machine learning for anomaly detection
+- [ ] **HIGH:** Predictive failure analysis
+- [ ] **MEDIUM:** Smart alert correlation and noise reduction
+- [ ] **MEDIUM:** Automated root cause analysis
+- [ ] **LOW:** Natural language query interface
 
-## Development Approach
+### Browser-Based Validation
+- [ ] **HIGH:** Headless browser testing (Chrome/Firefox)
+- [ ] **HIGH:** JavaScript execution and DOM validation
+- [ ] **MEDIUM:** Visual regression testing
+- [ ] **MEDIUM:** Performance profiling (Core Web Vitals)
+- [ ] **LOW:** Accessibility testing integration
 
-### Prioritization Criteria
-1. **User Impact:** Features that directly improve user experience
-2. **Complexity:** Balance between development effort and feature value
-3. **Dependencies:** Some features require others to be implemented first
+### Enterprise Features
+- [ ] **HIGH:** Multi-tenant architecture
+- [ ] **HIGH:** SSO integration (SAML, OAuth)
+- [ ] **HIGH:** Role-based access control
+- [ ] **MEDIUM:** Audit logging and compliance
+- [ ] **MEDIUM:** API rate limiting and quotas
 
-### Release Process
-1. **Alpha:** Internal testing with core developers
-2. **Beta:** Limited external testing with early adopters
-3. **Release Candidate:** Feature complete with focus on bug fixing
-4. **General Availability:** Public release with documentation and support
+### Platform & Infrastructure
+- [ ] **HIGH:** Cloud-native architecture (Kubernetes)
+- [ ] **HIGH:** Distributed checking from multiple regions
+- [ ] **MEDIUM:** Auto-scaling and load balancing
+- [ ] **MEDIUM:** Multi-cloud deployment support
+- [ ] **LOW:** Edge computing integration
 
-### Contribution Guidelines
-- All code should include appropriate unit tests
-- Documentation should be updated with each feature
-- Follow PEP 8 style guidelines
-- Each PR should address a specific feature or bug
+### Developer Experience
+- [ ] **HIGH:** GraphQL API with real-time subscriptions
+- [ ] **HIGH:** SDK for popular languages (Python, Go, Node.js)
+- [ ] **MEDIUM:** Custom scripting engine (Lua/JavaScript)
+- [ ] **MEDIUM:** Plugin architecture for extensibility
+- [ ] **LOW:** Visual workflow builder
 
-### Status Tracking
-This roadmap will be updated monthly to reflect progress and any reprioritization based on user feedback or technical constraints.
+## 📋 Development Guidelines
+
+### 🎯 Prioritization Framework
+1. **User Impact**: Direct value delivered to end users
+2. **Technical Debt**: Foundation for future development
+3. **Market Demand**: User-requested features and integrations
+4. **Complexity**: Effort-to-value ratio assessment
+
+### 🔄 Release Process
+1. **Planning**: Feature specification and technical design
+2. **Alpha**: Internal testing and validation
+3. **Beta**: Limited external testing with early adopters
+4. **RC**: Feature-complete release candidate
+5. **GA**: General availability with full support
+
+### 📊 Quality Standards
+- **Code Quality**: Maintain pylint 10.0/10 score
+- **Test Coverage**: Minimum 70% coverage for all modules
+- **Documentation**: Complete API docs and user guides
+- **Performance**: No regression in response times
+- **Security**: Regular security audits and updates
+
+### 🤝 Contribution Guidelines
+- Follow PEP 8 style guidelines and type hints
+- Include comprehensive tests for all new features
+- Update documentation for user-facing changes
+- Each PR addresses a single feature or bug fix
+- Backward compatibility maintained within major versions
+
+### 📈 Success Metrics
+- **Reliability**: 99.9% uptime for monitoring services
+- **Performance**: <100ms response time for API calls
+- **User Satisfaction**: >4.5/5 rating in user surveys
+- **Community**: Active contributor community growth
+- **Adoption**: 10,000+ active installations
+
+### 🔄 Roadmap Maintenance
+This roadmap is reviewed and updated quarterly based on:
+- User feedback and feature requests
+- Technical challenges and opportunities
+- Market trends and competitive analysis
+- Resource availability and team capacity
 
 ---
 
-**Note:** This roadmap represents the current development plan and may change based on user feedback, technical challenges, or new opportunities. Dates are targets, not hard deadlines.
+**Last Updated**: June 27, 2025
+**Next Review**: September 27, 2025
+
+> **Note**: This roadmap represents our current development vision. Timelines are estimates and may adjust based on user feedback, technical discoveries, and market conditions. We prioritize delivering high-quality, well-tested features over strict adherence to dates.

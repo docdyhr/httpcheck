@@ -12,7 +12,6 @@ import argparse
 import concurrent.futures
 import json
 import os
-import pickle
 import platform
 import re
 import subprocess
@@ -28,7 +27,7 @@ from requests.exceptions import HTTPError, RequestException, Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 STATUS_CODES_JSON = """{
@@ -877,7 +876,7 @@ class TLDManager:
 
     # Default cache settings
     DEFAULT_CACHE_PATH = os.path.join(os.path.expanduser("~"), ".httpcheck")
-    DEFAULT_CACHE_FILE = "tld_cache.pickle"
+    DEFAULT_CACHE_FILE = "tld_cache.json"
     DEFAULT_CACHE_DAYS = 30
 
     def __new__(cls, *args, **kwargs):
@@ -951,11 +950,11 @@ class TLDManager:
                     )
                 return False
 
-            # Load cache
-            with open(self.cache_file, "rb") as f:
-                cache_data = pickle.load(f)
-                self.tlds = cache_data["tlds"]
-                self.update_time = cache_data["update_time"]
+            # Load cache from JSON
+            with open(self.cache_file, encoding="utf-8") as f:
+                cache_data = json.load(f)
+                self.tlds = set(cache_data["tlds"])
+                self.update_time = datetime.fromisoformat(cache_data["update_time"])
 
             if self.verbose:
                 print(
@@ -963,7 +962,7 @@ class TLDManager:
                 )
             return True
 
-        except (OSError, pickle.UnpicklingError, KeyError) as e:
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             if self.verbose:
                 print(f"[-] Error loading TLD cache: {str(e)}")
             return False
@@ -971,14 +970,17 @@ class TLDManager:
     def _save_to_cache(self):
         """Save TLD data to the cache file."""
         try:
-            cache_data = {"tlds": self.tlds, "update_time": self.update_time}
-            with open(self.cache_file, "wb") as f:
-                pickle.dump(cache_data, f)
+            cache_data = {
+                "tlds": list(self.tlds),
+                "update_time": self.update_time.isoformat(),
+            }
+            with open(self.cache_file, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f, indent=2)
 
             if self.verbose:
                 print(f"[*] Saved {len(self.tlds)} TLDs to cache")
 
-        except (OSError, pickle.PicklingError) as e:
+        except (OSError, TypeError, ValueError) as e:
             if self.verbose:
                 print(f"[-] Error saving TLD cache: {str(e)}")
 
