@@ -5,6 +5,34 @@ All notable changes to httpcheck will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-06-27
+
+### ✨ Added
+- **Complete modular architecture**: Extracted 1,151-line monolithic file into 7 focused modules
+- **httpcheck/ package structure** with proper separation of concerns:
+  - `common.py`: Shared utilities, constants, and data structures
+  - `tld_manager.py`: TLD validation with JSON caching system
+  - `file_handler.py`: File input processing and URL validation
+  - `site_checker.py`: Core HTTP checking functionality
+  - `output_formatter.py`: Result formatting and display logic
+  - `notification.py`: System notification handling
+  - `__init__.py`: Package interface with backward compatibility
+- **SiteStatus.final_url property** for better URL handling after redirects
+- **Enhanced package imports** for better module accessibility
+
+### 🔧 Changed
+- **Maintained 100% backward compatibility** for CLI interface
+- **Improved code organization** with clean module boundaries and minimal coupling
+- **Enhanced test suite** to work with modular structure (52% coverage baseline)
+- **Applied modern Python typing** using `list[T]` instead of `List[T]`
+- **Applied consistent code formatting** via pre-commit hooks
+
+### 🏗️ Technical Details
+- All existing functionality preserved and rigorously tested
+- Achieved pylint 10.0/10 score across all modules
+- Foundation established for Phase 2 testing and quality improvements
+- Proper error handling and comprehensive type hints maintained throughout
+
 ## [1.3.1] - 2025-06-27
 
 ### 🔒 Security

@@ -3,7 +3,7 @@
 import json
 from typing import List, NamedTuple
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 
 # HTTP status codes - https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 STATUS_CODES_JSON = """{
