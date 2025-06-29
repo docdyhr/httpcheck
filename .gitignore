@@ -79,6 +79,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+*.lcov
 .hypothesis/
 .pytest_cache/
 
@@ -133,6 +134,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ruff
+.ruff_cache/
+
+# Bandit security reports
+bandit-report.json
+bandit.json
 
 ### SublimeText ###
 # Cache files for Sublime Text
@@ -197,7 +205,6 @@ pip-selfcheck.json
 
 ### AI Assistant Files ###
 # Claude
-CLAUDE.md
 .claude/
 
 # Cursor
@@ -221,4 +228,23 @@ private*
 tempCodeRunnerFile.py
 # local envrc folder
 .envrc
-.vscode
+
+### IDE and Editor Files ###
+# VSCode (keep some, exclude others)
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+### Build and Package Files ###
+# Wheel files
+*.whl
+
+# Development artifacts
+.tox/
+.nox/
+
+### Project Specific ###
+# TLD cache file (regenerated automatically)
+effective_tld_names.dat.cache

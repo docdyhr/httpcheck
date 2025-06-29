@@ -4,7 +4,7 @@
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
 Release date: 27 April 2025
-Version: 1.3.1
+Version: 1.4.0
 """
 
 import argparse
@@ -17,26 +17,61 @@ from urllib.parse import urlparse
 from tqdm import tqdm
 
 # Import from local modules
-from httpcheck.common import VERSION, InvalidTLDException, SiteStatus
+from httpcheck.common import (
+    VERSION,
+    InvalidTLDException,
+    SiteStatus,
+    parse_custom_headers,
+)
 from httpcheck.file_handler import FileInputHandler, url_validation
 from httpcheck.notification import notify
-from httpcheck.output_formatter import print_format
+from httpcheck.output_formatter import format_csv_list, format_json_list, print_format
 from httpcheck.site_checker import check_site
 from httpcheck.tld_manager import TLDManager
 
 
-def get_arguments():
-    """Handle website arguments."""
+def _create_argument_parser():
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent(__doc__),
+        description=textwrap.dedent(__doc__ or ""),
     )
+
+    # Basic site argument
     parser.add_argument(
         "site",
         nargs="*",
-        type=str,  # Changed from url_validation to str to handle validation later
+        type=str,
         help="return http status codes for one or more websites",
     )
+
+    # TLD validation options
+    _add_tld_arguments(parser)
+
+    # Request timing and retry options
+    _add_request_arguments(parser)
+
+    # File input handling options
+    _add_file_arguments(parser)
+
+    # Redirect handling options
+    _add_redirect_arguments(parser)
+
+    # Request customization options
+    _add_request_customization_arguments(parser)
+
+    # Output options
+    _add_output_arguments(parser)
+
+    parser.add_argument(
+        "--version", action="version", version=f"httpcheck.py {VERSION}"
+    )
+
+    return parser
+
+
+def _add_tld_arguments(parser):
+    """Add TLD-related arguments to parser."""
     parser.add_argument(
         "-t",
         "--tld",
@@ -44,8 +79,6 @@ def get_arguments():
         dest="tld",
         help="check if domain is in global list of TLDs",
     )
-
-    # TLD validation options
     parser.add_argument(
         "--disable-tld-checks",
         dest="disable_tld",
@@ -72,6 +105,9 @@ def get_arguments():
         help="number of days to keep the TLD cache valid (default: 30)",
     )
 
+
+def _add_request_arguments(parser):
+    """Add request timing and retry arguments to parser."""
     parser.add_argument(
         "--timeout",
         type=float,
@@ -90,8 +126,16 @@ def get_arguments():
         default=10,
         help="number of concurrent workers for fast mode",
     )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=1.0,
+        help="delay in seconds between retry attempts (default: 1.0)",
+    )
 
-    # File input handling options
+
+def _add_file_arguments(parser):
+    """Add file input handling arguments to parser."""
     parser.add_argument(
         "--file-summary",
         dest="file_summary",
@@ -106,7 +150,9 @@ def get_arguments():
         help="comment style to recognize: hash (#), slash (//), or both (default: both)",
     )
 
-    # Redirect handling options
+
+def _add_redirect_arguments(parser):
+    """Add redirect handling arguments to parser."""
     parser.add_argument(
         "--follow-redirects",
         dest="follow_redirects",
@@ -128,6 +174,28 @@ def get_arguments():
         help="show timing information for each redirect step",
     )
 
+
+def _add_request_customization_arguments(parser):
+    """Add request customization arguments to parser."""
+    parser.add_argument(
+        "-H",
+        "--header",
+        action="append",
+        dest="headers",
+        metavar="HEADER",
+        help="add custom HTTP header (can be used multiple times)",
+    )
+    parser.add_argument(
+        "--no-verify-ssl",
+        dest="verify_ssl",
+        action="store_false",
+        default=True,
+        help="disable SSL certificate verification",
+    )
+
+
+def _add_output_arguments(parser):
+    """Add output format and mode arguments to parser."""
     # Output mode options (mutually exclusive)
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument(
@@ -143,50 +211,88 @@ def get_arguments():
         "-f", "--fast", action="store_true", help="fast check with threading"
     )
 
+    # Output format options
     parser.add_argument(
-        "--version", action="version", version=f"httpcheck.py {VERSION}"
+        "--output",
+        dest="output_format",
+        choices=["table", "json", "csv"],
+        default="table",
+        help="output format: table (default), json, or csv",
     )
 
+
+def _process_file_input(site, options):
+    """Process file input with @ prefix."""
+    try:
+        handler = FileInputHandler(
+            site[1:],
+            verbose=options.file_summary or options.verbose,
+            comment_style=options.comment_style,
+        )
+        return list(handler.parse())
+    except Exception as e:
+        print(f"[-] Error processing file {site[1:]}: {str(e)}")
+        return []
+
+
+def _process_stdin_input():
+    """Process input from stdin."""
+    validated_sites = []
+    for line in sys.stdin:
+        line = line.strip()
+        if line and not (line.startswith("#") or line.startswith("//")):
+            # Basic comment handling for stdin
+            if "#" in line:
+                line = line[: line.find("#")].strip()
+            if "//" in line:
+                line = line[: line.find("//")].strip()
+
+            if line:  # Check again after comment removal
+                try:
+                    validated_url = url_validation(line)
+                    validated_sites.append(validated_url)
+                except argparse.ArgumentTypeError as e:
+                    print(str(e))
+    return validated_sites
+
+
+def _validate_sites(sites):
+    """Validate individual site URLs."""
+    validated_sites = []
+    for site in sites:
+        if site.startswith("@"):
+            continue  # Handled separately
+        try:
+            validated_url = url_validation(site)
+            validated_sites.append(validated_url)
+        except argparse.ArgumentTypeError as e:
+            print(str(e))
+    return validated_sites
+
+
+def get_arguments():
+    """Handle website arguments."""
+    parser = _create_argument_parser()
     options = parser.parse_args()
 
-    # Handle file input with @ prefix
+    # Warn about SSL verification
+    if not options.verify_ssl:
+        print("Warning: SSL certificate verification is disabled!")
+
+    # Process all inputs
     validated_sites = []
+
+    # Handle file inputs
     for site in options.site:
         if site.startswith("@"):
-            try:
-                handler = FileInputHandler(
-                    site[1:],
-                    verbose=options.file_summary or options.verbose,
-                    comment_style=options.comment_style,
-                )
-                for validated_url in handler.parse():
-                    validated_sites.append(validated_url)
-            except Exception as e:
-                print(f"[-] Error processing file {site[1:]}: {str(e)}")
-        else:
-            try:
-                validated_url = url_validation(site)
-                validated_sites.append(validated_url)
-            except argparse.ArgumentTypeError as e:
-                print(str(e))
+            validated_sites.extend(_process_file_input(site, options))
+
+    # Handle regular URL arguments
+    validated_sites.extend(_validate_sites(options.site))
 
     # Handle stdin if no sites provided
     if not validated_sites and not sys.stdin.isatty():
-        for line in sys.stdin:
-            line = line.strip()
-            if line and not (line.startswith("#") or line.startswith("//")):
-                # Basic comment handling for stdin
-                if "#" in line:
-                    line = line[: line.find("#")].strip()
-                if "//" in line:
-                    line = line[: line.find("//")].strip()
-
-                if line:  # Check again after comment removal
-                    try:
-                        validated_url = url_validation(line)
-                        validated_sites.append(validated_url)
-                    except argparse.ArgumentTypeError as e:
-                        print(str(e))
+        validated_sites.extend(_process_stdin_input())
 
     if not validated_sites:
         parser.error(
@@ -221,6 +327,8 @@ def process_site_status(site_status, site_url, successful, failures, failed_site
 def check_sites_serial(options, successful, failures, failed_sites):
     """Check sites one at a time."""
     results = []
+    site_statuses = []
+    custom_headers = parse_custom_headers(options.headers)
     with tqdm(
         total=len(options.site),
         desc="Checking sites",
@@ -236,15 +344,24 @@ def check_sites_serial(options, successful, failures, failed_sites):
                     retries=options.retries,
                     follow_redirects=options.follow_redirects,
                     max_redirects=options.max_redirects,
+                    custom_headers=custom_headers,
+                    verify_ssl=options.verify_ssl,
+                    retry_delay=options.retry_delay,
                 )
-                formatted_output = print_format(
-                    status,
-                    options.quiet,
-                    options.verbose,
-                    options.code,
-                    show_redirect_timing=options.show_redirect_timing,
-                )
-                results.append(formatted_output)
+                site_statuses.append(status)
+
+                # Only format for table output
+                if options.output_format == "table":
+                    formatted_output = print_format(
+                        status,
+                        options.quiet,
+                        options.verbose,
+                        options.code,
+                        show_redirect_timing=options.show_redirect_timing,
+                        output_format=options.output_format,
+                    )
+                    results.append(formatted_output)
+
                 successful, failures = process_site_status(
                     status, site, successful, failures, failed_sites
                 )
@@ -256,13 +373,20 @@ def check_sites_serial(options, successful, failures, failed_sites):
             pbar.update(1)
 
     # Print results after progress bar is done
-    print("\n".join(filter(None, results)))
+    if options.output_format == "json":
+        print(format_json_list(site_statuses, options.verbose))
+    elif options.output_format == "csv":
+        print(format_csv_list(site_statuses, options.verbose))
+    else:
+        print("\n".join(filter(None, results)))
     return successful, failures
 
 
 def check_sites_parallel(options, successful, failures, failed_sites):
     """Check sites in parallel using threading."""
     results = []
+    site_statuses = []
+    custom_headers = parse_custom_headers(options.headers)
     with tqdm(
         total=len(options.site),
         desc="Checking sites",
@@ -274,6 +398,7 @@ def check_sites_parallel(options, successful, failures, failed_sites):
             max_workers=options.workers
         ) as executor:
             # Submit all tasks
+            # Submit all work
             future_to_site = {
                 executor.submit(
                     check_site,
@@ -282,6 +407,9 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                     retries=options.retries,
                     follow_redirects=options.follow_redirects,
                     max_redirects=options.max_redirects,
+                    custom_headers=custom_headers,
+                    verify_ssl=options.verify_ssl,
+                    retry_delay=options.retry_delay,
                 ): site
                 for site in options.site
             }
@@ -291,14 +419,20 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                 site = future_to_site[future]
                 try:
                     status = future.result()
-                    formatted_output = print_format(
-                        status,
-                        options.quiet,
-                        options.verbose,
-                        options.code,
-                        show_redirect_timing=options.show_redirect_timing,
-                    )
-                    results.append(formatted_output)
+                    site_statuses.append(status)
+
+                    # Only format for table output
+                    if options.output_format == "table":
+                        formatted_output = print_format(
+                            status,
+                            options.quiet,
+                            options.verbose,
+                            options.code,
+                            show_redirect_timing=options.show_redirect_timing,
+                            output_format=options.output_format,
+                        )
+                        results.append(formatted_output)
+
                     successful, failures = process_site_status(
                         status, site, successful, failures, failed_sites
                     )
@@ -310,7 +444,12 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                 pbar.update(1)
 
     # Print results after progress bar is done
-    print("\n".join(filter(None, results)))
+    if options.output_format == "json":
+        print(format_json_list(site_statuses, options.verbose))
+    elif options.output_format == "csv":
+        print(format_csv_list(site_statuses, options.verbose))
+    else:
+        print("\n".join(filter(None, results)))
     return successful, failures
 
 
@@ -349,21 +488,15 @@ def check_tlds(options, failures, failed_sites):
     return failures
 
 
-def main():
-    """Check websites central."""
-    options = get_arguments()
-    start_time = datetime.now()
-    total_sites = len(options.site)
-    successful = 0
-    failures = 0
-    failed_sites = []
+def _print_verbose_header():
+    """Print verbose header with timestamp."""
+    now = datetime.now()
+    date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
+    print(f"\thttpcheck {date_stamp}:")
 
-    if options.verbose:
-        now = datetime.now()
-        date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
-        print(f"\thttpcheck {date_stamp}:")
 
-    # Process sites from stdin if no arguments given
+def _handle_stdin_input(options):
+    """Handle input from stdin if no arguments given."""
     if not options.site:
         if not sys.stdin.isatty():
             options.site = [line.strip() for line in sys.stdin if line.strip()]
@@ -374,25 +507,17 @@ def main():
                 "use --help for more info."
             )
 
-    failures = check_tlds(options, failures, failed_sites)
 
+def _process_sites(options, successful, failures, failed_sites):
+    """Process sites either serially or in parallel."""
     if not options.fast:
-        successful, failures = check_sites_serial(
-            options, successful, failures, failed_sites
-        )
+        return check_sites_serial(options, successful, failures, failed_sites)
     else:
-        successful, failures = check_sites_parallel(
-            options, successful, failures, failed_sites
-        )
+        return check_sites_parallel(options, successful, failures, failed_sites)
 
-    # Send completion notification
-    duration = datetime.now() - start_time
-    summary = (
-        f"Checked {total_sites} sites in {duration.seconds}s\n"
-        f"{successful} successful, {failures} failed"
-    )
-    print(f"\n{summary}")
 
+def _send_completion_notification(total_sites, successful, failures, failed_sites):
+    """Send notification about completion status."""
     if failures > 0:
         notify(
             "HTTP Check - Failed",
@@ -404,6 +529,35 @@ def main():
             "HTTP Check - Success",
             f"All {total_sites} sites checked successfully",
         )
+
+
+def main():
+    """Check websites central."""
+    options = get_arguments()
+    start_time = datetime.now()
+    total_sites = len(options.site)
+    successful = 0
+    failures = 0
+    failed_sites = []
+
+    if options.verbose:
+        _print_verbose_header()
+
+    _handle_stdin_input(options)
+    failures = check_tlds(options, failures, failed_sites)
+    successful, failures = _process_sites(options, successful, failures, failed_sites)
+
+    # Send completion notification
+    duration = datetime.now() - start_time
+    summary = (
+        f"Checked {total_sites} sites in {duration.seconds}s\n"
+        f"{successful} successful, {failures} failed"
+    )
+    # Only print summary for table format
+    if options.output_format == "table":
+        print(f"\n{summary}")
+
+    _send_completion_notification(total_sites, successful, failures, failed_sites)
 
 
 if __name__ == "__main__":

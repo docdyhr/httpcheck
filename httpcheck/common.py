@@ -1,7 +1,7 @@
 """Common utilities and constants for httpcheck."""
 
 import json
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 VERSION = "1.4.0"
 
@@ -101,3 +101,43 @@ class SiteStatus(NamedTuple):
 
 class InvalidTLDException(Exception):
     """Raised when a domain has an invalid TLD."""
+
+
+def parse_custom_headers(headers_list):
+    """Parse custom headers from command line with enhanced validation.
+
+    Args:
+        headers_list: List of header strings in format "Name: Value"
+
+    Returns:
+        Dictionary of headers
+    """
+    if not headers_list:
+        return None
+
+    # Import here to avoid circular imports
+    from .validation import HeaderValidationError, InputValidator
+
+    validator = InputValidator()
+
+    try:
+        return validator.validate_http_headers(headers_list)
+    except HeaderValidationError as e:
+        print(f"Warning: Header validation failed - {e}")
+
+        # Fallback to basic parsing for backward compatibility
+        headers_dict = {}
+        for header in headers_list:
+            if ":" not in header:
+                print(f"Warning: Invalid header format '{header}'. Use 'Name: Value'")
+                continue
+            name, value = header.split(":", 1)
+
+            # Basic sanitization
+            name = name.strip()
+            value = value.strip()
+
+            if name and value:
+                headers_dict[name] = value
+
+        return headers_dict if headers_dict else None

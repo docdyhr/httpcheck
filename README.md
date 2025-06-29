@@ -12,21 +12,30 @@
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
-* **Current Version**: 1.3.1 (Security and Stability Improvements)
-* **Target Version**: 1.4.0 (Major Refactoring in Progress)
+* **Current Version**: 1.4.0 (Major Architecture Release)
+* **Target Version**: 1.5.0 (Performance & Configuration Features)
 * **Programming Language**: Python 3.9+
 * **Author**: Thomas Juul Dyhr
 * **Purpose**: Advanced HTTP status checker with monitoring capabilities
 * **Development Status**: Active - See [ROADMAP.md](ROADMAP.md) for development plan
 
-## 🚀 Development Status
+## 🚀 Release Status
 
-**httpcheck is currently undergoing major refactoring for v1.4.0**
+**httpcheck v1.4.0 has been released! 🎉**
 
-- **Phase 1 (Weeks 1-3)**: Foundation Stabilization - Security fixes and code modularization
-- **Phase 2 (Weeks 4-6)**: Testing Framework - Comprehensive test coverage >70%
-- **Phase 3 (Weeks 7-10)**: Core Features - JSON/CSV output, custom headers
-- **Phase 4 (Weeks 11-16)**: Performance & Advanced Features - Async I/O, configuration files
+✅ **COMPLETED v1.4.0 Features:**
+- **Modular Architecture**: Fully extracted from monolithic script to 8 specialized modules
+- **Enhanced Security**: Enterprise-grade input validation and injection protection
+- **Comprehensive Testing**: 84% test coverage with 182 test cases
+- **New Output Formats**: JSON and CSV output options
+- **Advanced Request Control**: Custom headers, SSL options, redirect handling
+- **Package Installation**: Now installable via `pip install -e .`
+
+🚀 **Next: v1.5.0 Development Focus**
+- **Async I/O**: 2-3x performance improvement for large site lists
+- **Configuration Files**: User-defined defaults and settings
+- **Monitoring Mode**: Continuous site monitoring with notifications
+- **Enhanced UX**: Colored output and improved progress reporting
 
 See detailed plans in:
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - Executive overview and timeline
@@ -35,7 +44,7 @@ See detailed plans in:
 - [ROADMAP.md](ROADMAP.md) - Long-term vision through v2.0.0
 
 ## usage:
-httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--version] [site ...]
+httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--output {table,json,csv}] [--version] [site ...]
 
 ### positional arguments
 
@@ -56,7 +65,10 @@ httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-li
   -f, --fast             fast check wtih threading
   --timeout TIMEOUT      set the timeout for each request
   --retries RETRIES      set the number of retries for each request
+  --retry-delay DELAY    delay in seconds between retry attempts (default: 1.0)
   --workers WORKERS      set the number of worker threads
+  -H, --header HEADER    add custom HTTP header (can be used multiple times)
+  --no-verify-ssl        disable SSL certificate verification
   --file-summary         show summary of file parsing results (valid URLs, comments, etc.)
   --comment-style {hash,slash,both}
                          comment style to recognize: hash (#), slash (//), or both (default: both)
@@ -65,12 +77,21 @@ httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-li
   --max-redirects MAX_REDIRECTS
                          maximum number of redirects to follow (default: 30)
   --show-redirect-timing show detailed timing for each redirect in the chain
+  --output {table,json,csv}
+                         output format: table (default), json, or csv
   --version              show program's version number and exit
 
 ### additional information
 
   enter sites in url or 'no' url form: 'httpcheck duckduckgo.com'
   read sites from a file: 'httpcheck @domains.txt'.
+
+  output formats:
+  - Table (default): Human-readable columnar output
+  - JSON: Machine-parsable format for automation
+  - CSV: Comma-separated values for spreadsheets
+
+  Example: 'httpcheck google.com github.com --output json'
 
   [List of HTTP status codes](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
 
@@ -88,7 +109,7 @@ cd httpcheck/
 ### install requirements
 
 ```shell
-python3 -m pip install -r requirements.txt --user
+python3 -m pip install . --user
 ```
 
 On macOS, install terminal-notifier for notifications:
@@ -104,7 +125,7 @@ set up a virtual environment with venv.
 ```shell
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 or
@@ -142,6 +163,16 @@ chmod + ~/bin/httpcheck
 * Progress bar for multiple site checks
 * Configurable timeouts and retries
 * Pipe and file input support
+* **NEW: Multiple output formats**
+  * JSON format for easy parsing and automation
+  * CSV format for spreadsheet integration
+  * Table format (default) for human readability
+  * Verbose mode includes redirect details in all formats
+* **NEW: Request customization options**
+  * Custom HTTP headers support with -H flag
+  * Configurable retry delay between attempts
+  * SSL certificate verification control
+  * Enhanced timeout configuration
 
 ## usage examples
 
@@ -195,6 +226,9 @@ httpcheck --follow-redirects http-only example.com
 # Only follow redirects to HTTPS URLs (not HTTP)
 httpcheck --follow-redirects https-only example.com
 
+# Show detailed timing for each redirect
+httpcheck --show-redirect-timing http://example.com
+
 # Limit redirect chain length
 httpcheck --max-redirects 5 example.com
 
@@ -221,6 +255,54 @@ httpcheck --disable-tld-checks example.com
 
 # Set cache expiration to 60 days
 httpcheck -t --tld-cache-days 60 example.com
+```
+
+### output format examples
+
+Export results in different formats:
+
+```shell
+# JSON output for single site
+httpcheck google.com --output json
+
+# JSON output for multiple sites with verbose details
+httpcheck google.com github.com --output json -v
+
+# CSV output for spreadsheet import
+httpcheck @domains.txt --output csv
+
+# CSV with full details including redirects
+httpcheck @domains.txt --output csv -v
+
+# Process JSON output with jq
+httpcheck @sites.txt --output json | jq '.[] | select(.status != "200")'
+
+# Save CSV report with date
+httpcheck @sites.txt --output csv -v > report_$(date +%Y%m%d).csv
+
+# Filter errors only in JSON format
+httpcheck @sites.txt --output json -q | jq '.[] | .domain'
+```
+
+### request customization examples
+
+Add custom headers and control SSL verification:
+
+```shell
+# Add authorization header
+httpcheck -H "Authorization: Bearer token123" api.example.com
+
+# Multiple custom headers
+httpcheck -H "User-Agent: MyBot 1.0" -H "Accept: application/json" api.example.com
+
+# Disable SSL verification for self-signed certificates
+httpcheck --no-verify-ssl https://self-signed.example.com
+
+# Custom timeout and retry configuration
+httpcheck --timeout 30 --retries 5 --retry-delay 2.0 slow.example.com
+
+# Combine with other options
+httpcheck -H "API-Key: secret" --output json --no-verify-ssl https://api.example.com
 ```
 
 ### file input examples

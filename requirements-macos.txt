@@ -1,7 +1,0 @@
-# Menu bar app dependencies (macOS only)
-rumps>=0.4.0
-pyobjc-framework-Cocoa>=10.0
-pyobjc-framework-Foundation>=10.0
-pyobjc-framework-AppKit>=10.0
-pyobjc-core>=10.0
-py2app>=0.28

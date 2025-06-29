@@ -1,6 +1,0 @@
-# Core dependencies for httpcheck CLI tool
--r requirements-core.txt
-
-# macOS Menu Bar App dependencies (install only on macOS)
-# pip install -r requirements-macos.txt
--r requirements-macos.txt ; sys_platform == "darwin"

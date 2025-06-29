@@ -9,7 +9,6 @@ import os
 import subprocess
 
 # Import the main module
-import sys
 import tempfile
 from datetime import datetime
 from unittest.mock import MagicMock, mock_open, patch
@@ -162,8 +161,35 @@ class TestTLDManager:
     @pytest.mark.skip(reason="Complex datetime mocking - will be improved in Phase 2")
     def test_load_from_cache_json(self):
         """Test loading TLD cache from JSON file."""
-        # This test needs complex datetime mocking and will be improved
-        # in Phase 2 with better test infrastructure
+        from datetime import timedelta
+
+        # Create a temporary cache file with valid JSON
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            cache_data = {
+                "last_updated": (datetime.now() - timedelta(days=5)).isoformat(),
+                "tlds": ["com", "org", "net", "io", "dev"],
+            }
+            json.dump(cache_data, f)
+            cache_file = f.name
+
+        try:
+            # Create TLDManager with custom cache file
+            with patch(
+                "httpcheck.tld_manager.TLDManager.DEFAULT_CACHE_FILE", cache_file
+            ):
+                with patch(
+                    "httpcheck.tld_manager.TLDManager.DEFAULT_CACHE_PATH",
+                    os.path.dirname(cache_file),
+                ):
+                    manager = TLDManager(cache_days=30)
+
+                    # Check that TLDs were loaded
+                    assert manager.tlds is not None
+                    assert "com" in manager.tlds
+                    assert "org" in manager.tlds
+                    assert len(manager.tlds) == 5
+        finally:
+            os.unlink(cache_file)
 
     def test_json_cache_migration(self):
         """Test that new JSON cache format works."""
