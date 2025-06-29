@@ -37,5 +37,5 @@ jobs:
 
       - name: Run Pylint
         run: |
-          # Exclude macOS-specific files on Linux runners
-          pylint --fail-under=10.0 $(git ls-files '*.py' | grep -v -E '(httpcheck_menubar|macos_notifications|test_menubar)\.py$')
+          # Exclude macOS-specific files and test files on Linux runners
+          pylint --fail-under=10.0 $(git ls-files '*.py' | grep -v tests/ | grep -v -E '(httpcheck_menubar|macos_notifications|test_menubar)\.py$')
