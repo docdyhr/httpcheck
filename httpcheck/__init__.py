@@ -78,7 +78,7 @@ def main():
     if os.path.exists(httpcheck_script):
         # Run the script directly with subprocess to avoid import conflicts
         result = subprocess.run(
-            [sys.executable, httpcheck_script] + sys.argv[1:], check=False
+            [sys.executable, httpcheck_script] + sys.argv[1:], check=False, shell=False
         )
         sys.exit(result.returncode)
     else:
