@@ -46,20 +46,16 @@ def _create_protocol_restricted_session(
         ):
             redirect_url = response.headers["location"]
 
-            # Check protocol restrictions
             if _should_stop_redirect(follow_redirects, redirect_url):
                 break
 
-            # Record redirect timing
             redirect_time = datetime.now()
             redirect_chain.append((response.url, response.status_code))
 
-            # Follow the redirect
             response = original_get(
                 redirect_url, allow_redirects=False, *args, **kwargs
             )
 
-            # Calculate and store timing
             redirect_elapsed = (datetime.now() - redirect_time).total_seconds()
             redirect_timing.append(
                 (redirect_url, response.status_code, redirect_elapsed)
@@ -85,7 +81,6 @@ def _track_redirect_chain(
 ):
     """Track redirect chain and timing for standard redirects."""
     if allow_redirects and response.history:
-        # Handle all redirections that happened
         prev_time = initial_time
         for i, r in enumerate(response.history):
             hop_time = prev_time if i == 0 else 0.0
@@ -93,11 +88,9 @@ def _track_redirect_chain(
             redirect_timing.append((r.url, r.status_code, hop_time))
             prev_time = 0.0
 
-        # Add the final response
         redirect_chain.append((response.url, response.status_code))
         redirect_timing.append((response.url, response.status_code, 0.0))
     elif not allow_redirects and response.is_redirect:
-        # Not following redirects but got one
         redirect_chain.append((response.url, response.status_code))
         redirect_timing.append((response.url, response.status_code, initial_time))
 
@@ -126,6 +119,33 @@ def _handle_request_exception(e, attempt, retries, *, retry_delay, site, verify_
     return None
 
 
+def _perform_request(session, site, custom_header, timeout, allow_redirects):
+    """Perform the HTTP request and return the response."""
+    hop_start_time = datetime.now()
+    response = session.get(
+        site,
+        headers=custom_header,
+        timeout=timeout,
+        allow_redirects=allow_redirects,
+    )
+    initial_time = (datetime.now() - hop_start_time).total_seconds()
+    return response, initial_time
+
+
+def _handle_redirects(response, allow_redirects, initial_time):
+    """Track redirects and return the redirect chain and timing."""
+    redirect_chain = []
+    redirect_timing = []
+    _track_redirect_chain(
+        response,
+        allow_redirects,
+        initial_time,
+        redirect_chain,
+        redirect_timing,
+    )
+    return redirect_chain, redirect_timing
+
+
 def check_site(
     site,
     timeout=5.0,
@@ -137,18 +157,7 @@ def check_site(
     verify_ssl=True,
     retry_delay=1.0,
 ):
-    """Check website status code with redirect tracking.
-
-    Args:
-        site: URL to check
-        timeout: Request timeout in seconds
-        retries: Number of retry attempts
-        follow_redirects: Redirect behavior ('always', 'never', 'http-only', 'https-only')
-        max_redirects: Maximum number of redirects to follow
-        custom_headers: Dictionary of custom HTTP headers
-        verify_ssl: Whether to verify SSL certificates
-        retry_delay: Delay between retries in seconds
-    """
+    """Check website status code with redirect tracking."""
     custom_header = _create_custom_headers(custom_headers)
     session, allow_redirects = _configure_session(
         follow_redirects, max_redirects, verify_ssl
@@ -156,13 +165,11 @@ def check_site(
 
     for attempt in range(retries + 1):
         try:
-            # Reset tracking for each attempt
-            redirect_chain = []
-            redirect_timing = []
             start_time = datetime.now()
 
-            # Handle protocol-restricted redirects
             if follow_redirects in ("http-only", "https-only"):
+                redirect_chain = []
+                redirect_timing = []
                 session.get = _create_protocol_restricted_session(
                     session,
                     follow_redirects,
@@ -170,27 +177,14 @@ def check_site(
                     redirect_chain=redirect_chain,
                     redirect_timing=redirect_timing,
                 )
-
-            # Make the request
-            if follow_redirects in ("always", "never"):
-                hop_start_time = datetime.now()
-                response = session.get(
-                    site,
-                    headers=custom_header,
-                    timeout=timeout,
-                    allow_redirects=allow_redirects,
-                )
-                initial_time = (datetime.now() - hop_start_time).total_seconds()
-                _track_redirect_chain(
-                    response,
-                    allow_redirects,
-                    initial_time,
-                    redirect_chain,
-                    redirect_timing,
-                )
-            else:
-                # For protocol-restricted redirects
                 response = session.get(site, headers=custom_header, timeout=timeout)
+            else:
+                response, initial_time = _perform_request(
+                    session, site, custom_header, timeout, allow_redirects
+                )
+                redirect_chain, redirect_timing = _handle_redirects(
+                    response, allow_redirects, initial_time
+                )
 
             end_time = datetime.now()
             response_time = (end_time - start_time).total_seconds()
@@ -216,5 +210,4 @@ def check_site(
             if error_result:
                 return error_result
 
-    # Default return in case all retries fail
     return SiteStatus(urlparse(site).hostname, "[unknown error]", "All retries failed")

@@ -5,6 +5,8 @@ import re
 from collections.abc import Iterator
 from typing import Optional
 
+import validators
+
 from .validation import (
     FileValidationError,
     InputValidator,
@@ -14,25 +16,11 @@ from .validation import (
 
 
 def url_validation(site_url):
-    """Check if url is valid and return it.
+    """Check if url is valid and return it."""
+    if not site_url.startswith(("http://", "https://")):
+        site_url = f"http://{site_url}"
 
-    Maintains original behavior for backward compatibility.
-    """
-    # Original logic with the same behavior (including bugs)
-    site_url = site_url if site_url.startswith("http") else f"http://{site_url}"
-    # check url with regex
-    regex = re.compile(
-        r"^(?:http|ftp)s?://"  # http:// or https://
-        #  domain
-        r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"
-        r"localhost|"  # localhost...
-        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"  # ...or ip
-        r"(?::\d+)?"  # optional port
-        r"(?:/?|[/?]\S+)$",
-        re.IGNORECASE,
-    )
-
-    if re.match(regex, site_url) is not None:
+    if validators.url(site_url):
         return site_url
     msg = f"[-] Invalid URL: '{site_url}'"
     raise argparse.ArgumentTypeError(msg)
@@ -143,28 +131,20 @@ class FileInputHandler:
     def _read_file_safely(self) -> str:
         """Read file with enhanced security and encoding detection."""
         try:
-            # Try UTF-8 first
             with open(self.file_path, encoding="utf-8") as f:
-                content = f.read()
+                return f.read()
         except UnicodeDecodeError:
-            # Fallback to latin-1 for compatibility
             try:
                 with open(self.file_path, encoding="latin-1") as f:
-                    content = f.read()
-                if self.verbose:
-                    print(
-                        f"Warning: File {self.file_path} decoded with latin-1 encoding"
-                    )
-            except UnicodeDecodeError:
-                # Last resort: ignore errors
-                with open(self.file_path, encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-                if self.verbose:
-                    print(
-                        f"Warning: File {self.file_path} had encoding errors that were ignored"
-                    )
-
-        return content
+                    if self.verbose:
+                        print(
+                            f"Warning: File {self.file_path} decoded with latin-1 encoding"
+                        )
+                    return f.read()
+            except UnicodeDecodeError as e:
+                raise FileValidationError(
+                    f"Could not decode file {self.file_path}"
+                ) from e
 
     def _process_line(self, line: str, line_num: int) -> Optional[str]:
         """Process a single line from the input file with enhanced validation."""
