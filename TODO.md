@@ -32,9 +32,10 @@
 - [ ] **Update project website/docs** - Reflect new package structure
 - [ ] **Create migration guide** - For users wanting to use modular imports
 - [ ] **Performance baseline** - Benchmark current performance for v1.5.0 comparison
+  - _Use the ready-to-file issue descriptions in `docs/github_issue_drafts.md` to open the GitHub tracking items for these tasks._
 
 ### 2. CI/CD Pipeline Setup
-- [ ] **GitHub Actions workflow** - Automated testing on PR/push
+- [x] **GitHub Actions workflow** - Automated testing on PR/push
   ```yaml
   # .github/workflows/test.yml
   - Run pylint (must score 10.0)
@@ -42,8 +43,9 @@
   - Run security audit (pip-audit)
   - Test installation on Python 3.9, 3.10, 3.11, 3.12
   ```
-- [ ] **Automated release process** - Tag-based releases to PyPI
-- [ ] **Dependency updates** - Dependabot configuration
+- [x] **Automated release process** - Tag-based releases to PyPI
+- [x] **Dependency updates** - Dependabot configuration
+  - _Release workflow docs: `docs/release_process.md`; Dependabot rules: `.github/dependabot.yml`._
 
 ### 3. Documentation Enhancement
 - [ ] **API documentation** - Document all public functions for library usage
