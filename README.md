@@ -12,7 +12,7 @@
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
-* **Current Version**: 1.4.0 (Major Architecture Release)
+* **Current Version**: 1.4.1 (Security & Architecture Patch)
 * **Target Version**: 1.5.0 (Performance & Configuration Features)
 * **Programming Language**: Python 3.9+
 * **Author**: Thomas Juul Dyhr
@@ -21,15 +21,21 @@
 
 ## 🚀 Release Status
 
-**httpcheck v1.4.0 has been released! 🎉**
+**httpcheck v1.4.1 has been released! 🔒**
 
-✅ **COMPLETED v1.4.0 Features:**
-- **Modular Architecture**: Fully extracted from monolithic script to 8 specialized modules
-- **Enhanced Security**: Enterprise-grade input validation and injection protection
-- **Comprehensive Testing**: 84% test coverage with 182 test cases
-- **New Output Formats**: JSON and CSV output options
-- **Advanced Request Control**: Custom headers, SSL options, redirect handling
-- **Package Installation**: Now installable via `pip install -e .`
+✅ **NEW in v1.4.1:**
+- **Security Patches**: Updated dependencies (requests 2.32.5, urllib3 2.5.0)
+- **Improved Entry Point**: Refactored CLI to proper package function
+- **Mypy Support**: Added type checking configuration
+- **Pytest Fix**: Resolved asyncio deprecation warning
+
+✅ **v1.4.0 Foundation:**
+- **Modular Architecture**: 8 specialized modules
+- **Enhanced Security**: Enterprise-grade input validation
+- **Comprehensive Testing**: 88% test coverage with 190 test cases
+- **Multiple Output Formats**: JSON and CSV support
+- **Advanced Request Control**: Custom headers, SSL options
+- **Package Installation**: `pip install -e .`
 
 🚀 **Next: v1.5.0 Development Focus**
 - **Async I/O**: 2-3x performance improvement for large site lists
@@ -44,7 +50,17 @@ See detailed plans in:
 - [ROADMAP.md](ROADMAP.md) - Long-term vision through v2.0.0
 
 ## usage:
-httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only] [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS] [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES] [--workers WORKERS] [--file-summary] [--comment-style {hash,slash,both}] [--follow-redirects {always,never,http-only,https-only}] [--max-redirects MAX_REDIRECTS] [--show-redirect-timing] [--output {table,json,csv}] [--version] [site ...]
+
+```
+httpcheck [-h] [-t] [--disable-tld-checks] [--tld-warning-only]
+          [--update-tld-list] [--tld-cache-days TLD_CACHE_DAYS]
+          [-q | -v | -c | -f] [--timeout TIMEOUT] [--retries RETRIES]
+          [--workers WORKERS] [--file-summary]
+          [--comment-style {hash,slash,both}]
+          [--follow-redirects {always,never,http-only,https-only}]
+          [--max-redirects MAX_REDIRECTS] [--show-redirect-timing]
+          [--output {table,json,csv}] [--version] [site ...]
+```
 
 ### positional arguments
 
@@ -362,7 +378,8 @@ open "/Applications/onSite.app"
 
 ### menu bar app features
 
-* **Live Status Indicator**: Menu bar shows ⚡ (white lightning - all good/checking), 🔴⚡ (red + lightning - failures)
+* **Live Status Indicator**: Menu bar shows ⚡ (white lightning - all
+  good/checking), 🔴⚡ (red + lightning - failures)
 * **Badge Count**: Shows number of failed sites next to the icon
 * **Rich Notifications**: Native macOS notifications with:
   * Site down alerts with status codes
@@ -395,7 +412,10 @@ open "/Applications/onSite.app"
 
 ## history
 
-checking one or more websites by constantly opening a browser seems a waste of time. Providing a cli tool that can be used in a bash shell, pipe or for scheduling tasks in cron, notifying the user, seems the way to go. The python requests library seems perfect for the job.
+checking one or more websites by constantly opening a browser seems a waste of
+time. Providing a cli tool that can be used in a bash shell, pipe or for
+scheduling tasks in cron, notifying the user, seems the way to go. The python
+requests library seems perfect for the job.
 
 ## todo
 

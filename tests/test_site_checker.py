@@ -51,7 +51,7 @@ class TestSiteChecker:
             # Verify timeout was passed (with headers)
             mock_session.get.assert_called_with(
                 "https://example.com",
-                headers={"User-Agent": "httpcheck Agent 1.4.0"},
+                headers={"User-Agent": "httpcheck Agent 1.4.1"},
                 timeout=5,
                 allow_redirects=True,
             )
@@ -193,7 +193,7 @@ class TestSiteChecker:
             # Verify allow_redirects=False was used
             mock_session.get.assert_called_with(
                 "https://example.com/old",
-                headers={"User-Agent": "httpcheck Agent 1.4.0"},
+                headers={"User-Agent": "httpcheck Agent 1.4.1"},
                 timeout=5.0,
                 allow_redirects=False,
             )
@@ -454,7 +454,7 @@ class TestSiteChecker:
             result = check_site("https://example.com", custom_headers=custom_headers)
 
             expected_headers = {
-                "User-Agent": "httpcheck Agent 1.4.0",
+                "User-Agent": "httpcheck Agent 1.4.1",
                 "Authorization": "Bearer token123",
                 "X-Custom-Header": "custom-value",
             }

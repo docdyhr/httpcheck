@@ -4,7 +4,9 @@ This file provides comprehensive guidance for AI assistants working with the htt
 
 ## 🎯 Project Overview
 
-**httpcheck** is a Python CLI tool for HTTP status code checking with advanced features including threading, redirect handling, TLD validation, and macOS integration.
+**httpcheck** is a Python CLI tool for HTTP status code checking with advanced
+features including threading, redirect handling, TLD validation, and macOS
+integration.
 
 - **Current Version**: 1.4.0 (RELEASED ✅)
 - **Target Version**: 1.5.0 (Async I/O and Configuration)

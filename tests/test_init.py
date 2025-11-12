@@ -1,46 +1,81 @@
+"""Test cases for httpcheck package initialization."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 
 
 class TestInit(unittest.TestCase):
-    @patch("subprocess.run")
-    @patch("sys.exit")
-    def test_main_success(self, mock_sys_exit, mock_subprocess_run):
-        """Test the main function in __init__.py - success case."""
-        from httpcheck import main
+    """Test cases for the httpcheck package initialization."""
 
-        # Mock the subprocess call
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_subprocess_run.return_value = mock_result
+    def test_package_imports(self):
+        """Test that package imports work correctly."""
+        from httpcheck import (
+            VERSION,
+            InvalidTLDException,
+            SiteStatus,
+            TLDManager,
+            check_site,
+            format_csv,
+            format_json,
+            main,
+            notify,
+            print_format,
+            url_validation,
+        )
 
-        # Call the main function
-        main()
+        # Verify key exports are available
+        assert main is not None
+        assert check_site is not None
+        assert VERSION is not None
+        assert SiteStatus is not None
 
-        # Assert that subprocess.run was called with the correct arguments
-        mock_subprocess_run.assert_called_once()
-        self.assertIn("httpcheck.py", mock_subprocess_run.call_args[0][0][1])
-
-        # Assert that sys.exit was called with the correct return code
-        mock_sys_exit.assert_called_once_with(0)
-
-    @patch("subprocess.run")
-    @patch("sys.exit")
-    @patch("os.path.exists", return_value=False)
-    def test_main_script_not_found(
-        self, mock_os_path_exists, mock_sys_exit, mock_subprocess_run
+    @patch("httpcheck.cli.get_arguments")
+    @patch("httpcheck.cli.check_tlds")
+    @patch("httpcheck.cli._process_sites")
+    @patch("httpcheck.cli._send_completion_notification")
+    def test_main_cli_integration(
+        self, mock_notify, mock_process, mock_check_tlds, mock_get_args
     ):
-        """Test the main function in __init__.py - script not found case."""
+        """Test that main() calls the CLI properly."""
         from httpcheck import main
 
-        # Call the main function
-        main()
+        # Mock the command line arguments
+        mock_options = MagicMock()
+        mock_options.site = ["https://example.com"]
+        mock_options.verbose = False
+        mock_options.output_format = "table"
+        mock_get_args.return_value = mock_options
 
-        # Assert that subprocess.run was not called
-        mock_subprocess_run.assert_not_called()
+        # Mock TLD checking
+        mock_check_tlds.return_value = 0
 
-        # Assert that sys.exit was called with the correct return code
-        mock_sys_exit.assert_called_once_with(1)
+        # Mock site processing
+        mock_process.return_value = (1, 0)  # 1 successful, 0 failures
+
+        # Call main - it should work without errors
+        try:
+            main()
+        except SystemExit:
+            pass  # Main doesn't call sys.exit in normal operation
+
+        # Verify the flow was called
+        mock_get_args.assert_called_once()
+        mock_check_tlds.assert_called_once()
+        mock_process.assert_called_once()
+
+    def test_version_string(self):
+        """Test that version is correctly set."""
+        from httpcheck import VERSION, __version__
+
+        assert VERSION == "1.4.1"
+        assert __version__ == "1.4.1"
+
+    def test_main_callable(self):
+        """Test that main() function is callable."""
+        from httpcheck import main
+
+        assert callable(main)
+        assert main.__module__ == "httpcheck.cli"
 
 
 if __name__ == "__main__":

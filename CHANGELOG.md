@@ -5,6 +5,30 @@ All notable changes to httpcheck will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-01-12
+
+### 🔒 Security
+- **CRITICAL**: Updated `requests` from 2.32.0 to 2.32.5 (fixes GHSA-9hjg-9r4m-mvj7)
+- **CRITICAL**: Updated `urllib3` from 2.2.2 to 2.5.0 (fixes 2 security vulnerabilities)
+- Updated `pip` to 25.3 (fixes GHSA-4xh5-x5gv-qwph)
+
+### 🔧 Changed
+- **Refactored main() entry point** - Moved from subprocess call to proper package function
+  - Created new `httpcheck/cli.py` module with all CLI logic
+  - Package now imports `main()` directly from `cli` module
+  - Eliminates fragile subprocess dependency and improves performance
+  - Maintains backward compatibility with existing `httpcheck.py` script
+- **Improved package structure** - CLI logic now properly integrated into package
+
+### ✨ Added
+- **Type checking support** - Added mypy configuration to `pyproject.toml`
+- **Pytest configuration** - Fixed asyncio deprecation warning with proper config
+
+### 📦 Package Structure
+- New `httpcheck/cli.py` - Complete CLI implementation (534 lines)
+- Updated `httpcheck/__init__.py` - Now imports main from cli module
+- Maintained `httpcheck.py` - Backward compatibility wrapper
+
 ## [1.4.0] - 2025-01-16
 
 ### 🎉 Major Release: Complete Architecture Modernization
