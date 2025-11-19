@@ -1,6 +1,4 @@
 [![CI/CD Pipeline](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml)
-[![Quick Pylint Check](https://github.com/docdyhr/httpcheck/actions/workflows/pylint.yml/badge.svg)](https://github.com/docdyhr/httpcheck/actions/workflows/pylint.yml)
-[![CodeQL](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml/badge.svg?event=schedule)](https://github.com/docdyhr/httpcheck/security/code-scanning)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 ![Python Version](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
 [![GitHub issues](https://img.shields.io/github/issues/docdyhr/httpcheck)](https://github.com/docdyhr/httpcheck/issues)
@@ -424,5 +422,3 @@ requests library seems perfect for the job.
 ## license
 
 [MIT](https://github.com/docdyhr/httpcheck/blob/master/LICENSE)
-# CI/CD Pipeline Test
-# CI/CD Verification Complete
