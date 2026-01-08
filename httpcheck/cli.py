@@ -16,6 +16,7 @@ from tqdm import tqdm
 # Import from local modules
 from .common import VERSION, InvalidTLDException, SiteStatus, parse_custom_headers
 from .file_handler import FileInputHandler, url_validation
+from .logger import get_logger, setup_logger
 from .notification import notify
 from .output_formatter import format_csv_list, format_json_list, print_format
 from .site_checker import check_site
@@ -218,6 +219,25 @@ def _add_output_arguments(parser):
         help="output format: table (default), json, or csv",
     )
 
+    # Logging options
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable debug logging",
+    )
+    parser.add_argument(
+        "--log-file",
+        dest="log_file",
+        type=str,
+        help="write logs to file",
+    )
+    parser.add_argument(
+        "--log-json",
+        dest="log_json",
+        action="store_true",
+        help="output logs in JSON format",
+    )
+
 
 def _process_file_input(site, options):
     """Process file input with @ prefix."""
@@ -229,12 +249,14 @@ def _process_file_input(site, options):
         )
         return list(handler.parse())
     except Exception as e:
-        print(f"[-] Error processing file {site[1:]}: {str(e)}")
+        logger = get_logger()
+        logger.error("Error processing file %s: %s", site[1:], str(e))
         return []
 
 
 def _process_stdin_input():
     """Process input from stdin."""
+    logger = get_logger()
     validated_sites = []
     for line in sys.stdin:
         line = line.strip()
@@ -250,12 +272,13 @@ def _process_stdin_input():
                     validated_url = url_validation(line)
                     validated_sites.append(validated_url)
                 except argparse.ArgumentTypeError as e:
-                    print(str(e))
+                    logger.error(str(e))
     return validated_sites
 
 
 def _validate_sites(sites):
     """Validate individual site URLs."""
+    logger = get_logger()
     validated_sites = []
     for site in sites:
         if site.startswith("@"):
@@ -264,7 +287,7 @@ def _validate_sites(sites):
             validated_url = url_validation(site)
             validated_sites.append(validated_url)
         except argparse.ArgumentTypeError as e:
-            print(str(e))
+            logger.error(str(e))
     return validated_sites
 
 
@@ -273,9 +296,21 @@ def get_arguments():
     parser = _create_argument_parser()
     options = parser.parse_args()
 
+    # Setup logging based on options
+    import logging
+
+    log_level = logging.DEBUG if options.debug else logging.INFO
+    setup_logger(
+        level=log_level,
+        log_file=options.log_file,
+        json_format=options.log_json,
+        quiet=options.quiet,
+    )
+    logger = get_logger()
+
     # Warn about SSL verification
     if not options.verify_ssl:
-        print("Warning: SSL certificate verification is disabled!")
+        logger.warning("SSL certificate verification is disabled!")
 
     # Process all inputs
     validated_sites = []
@@ -370,7 +405,7 @@ def check_sites_serial(options, successful, failures, failed_sites):
                 failed_sites.append(f"{urlparse(site).hostname} (Error)")
             pbar.update(1)
 
-    # Print results after progress bar is done
+    # Print results after progress bar is done (output to stdout, not logger)
     if options.output_format == "json":
         print(format_json_list(site_statuses, options.verbose))
     elif options.output_format == "csv":
@@ -440,7 +475,7 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                     failed_sites.append(f"{urlparse(site).hostname} (Error)")
                 pbar.update(1)
 
-    # Print results after progress bar is done
+    # Print results after progress bar is done (output to stdout, not logger)
     if options.output_format == "json":
         print(format_json_list(site_statuses, options.verbose))
     elif options.output_format == "csv":
@@ -452,6 +487,8 @@ def check_sites_parallel(options, successful, failures, failed_sites):
 
 def check_tlds(options, failures, failed_sites):
     """Check TLDs if requested."""
+    logger = get_logger()
+
     # Skip TLD checks if disabled
     if options.disable_tld:
         return failures
@@ -474,22 +511,23 @@ def check_tlds(options, failures, failed_sites):
             try:
                 tld_manager.validate_tld(site)
             except InvalidTLDException as e:
-                print(str(e))
+                logger.error(str(e))
                 failures += 1
                 failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
 
     except Exception as e:
         if options.verbose:
-            print(f"[-] Error during TLD validation: {str(e)}")
+            logger.error("Error during TLD validation: %s", str(e))
 
     return failures
 
 
 def _print_verbose_header():
     """Print verbose header with timestamp."""
+    logger = get_logger()
     now = datetime.now()
     date_stamp = now.strftime("%d/%m/%Y %H:%M:%S")
-    print(f"\thttpcheck {date_stamp}:")
+    logger.info("\thttpcheck %s:", date_stamp)
 
 
 def _handle_stdin_input(options):
@@ -531,11 +569,14 @@ def _send_completion_notification(total_sites, successful, failures, failed_site
 def main():
     """Main CLI entry point for httpcheck."""
     options = get_arguments()
+    logger = get_logger()
     start_time = datetime.now()
     total_sites = len(options.site)
     successful = 0
     failures = 0
     failed_sites = []
+
+    logger.debug("Starting httpcheck with %d sites", total_sites)
 
     if options.verbose:
         _print_verbose_header()
@@ -550,6 +591,9 @@ def main():
         f"Checked {total_sites} sites in {duration.seconds}s\n"
         f"{successful} successful, {failures} failed"
     )
+
+    logger.debug("Completed in %s seconds", duration.seconds)
+
     # Only print summary for table format
     if options.output_format == "table":
         print(f"\n{summary}")

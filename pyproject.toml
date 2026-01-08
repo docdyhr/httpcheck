@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "httpcheck"
-version = "1.4.1"
+version = "1.4.2"
 description = "HTTP status code checker with advanced features"
 authors = [{ name = "Thomas Juul Dyhr", email = "thomas@dyhr.com" }]
 license = { text = "MIT" }
@@ -39,7 +39,14 @@ macos = [
 ]
 
 # Development dependencies
-dev = ["pytest>=7.0", "pytest-mock>=3.0", "pytest-cov>=4.0", "pylint>=3.1.0", "mypy>=1.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-mock>=3.0",
+    "pytest-cov>=4.0",
+    "pytest-benchmark>=5.0",
+    "pylint>=3.1.0",
+    "mypy>=1.0"
+]
 
 # Build dependencies for macOS app
 build = ["py2app>=0.28"]

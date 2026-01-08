@@ -67,8 +67,8 @@ class TestInit(unittest.TestCase):
         """Test that version is correctly set."""
         from httpcheck import VERSION, __version__
 
-        assert VERSION == "1.4.1"
-        assert __version__ == "1.4.1"
+        assert VERSION == "1.4.2"
+        assert __version__ == "1.4.2"
 
     def test_main_callable(self):
         """Test that main() function is callable."""

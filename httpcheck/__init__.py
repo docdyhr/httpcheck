@@ -5,7 +5,7 @@ A Python CLI tool for checking HTTP status codes of websites with
 threading, redirect handling, TLD validation, and system notifications.
 """
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 __author__ = "Thomas Juul Dyhr"
 __email__ = "thomas@dyhr.com"
 
