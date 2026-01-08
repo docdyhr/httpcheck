@@ -1,6 +1,8 @@
+[![PyPI version](https://badge.fury.io/py/httpcheck.svg)](https://badge.fury.io/py/httpcheck)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/httpcheck)](https://pypi.org/project/httpcheck/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/httpcheck)](https://pypi.org/project/httpcheck/)
 [![CI/CD Pipeline](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml/badge.svg)](https://github.com/docdyhr/httpcheck/actions/workflows/ci.yml)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-![Python Version](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
 [![GitHub issues](https://img.shields.io/github/issues/docdyhr/httpcheck)](https://github.com/docdyhr/httpcheck/issues)
 ![GitHub repo size](https://img.shields.io/github/repo-size/docdyhr/httpcheck)
 ![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
@@ -10,30 +12,31 @@
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
-* **Current Version**: 1.4.1 (Security & Architecture Patch)
+* **Current Version**: 1.4.2 (Enterprise-Grade Improvements)
 * **Target Version**: 1.5.0 (Performance & Configuration Features)
 * **Programming Language**: Python 3.9+
 * **Author**: Thomas Juul Dyhr
 * **Purpose**: Advanced HTTP status checker with monitoring capabilities
 * **Development Status**: Active - See [ROADMAP.md](ROADMAP.md) for development plan
+* **PyPI**: https://pypi.org/project/httpcheck/
 
 ## 🚀 Release Status
 
-**httpcheck v1.4.1 has been released! 🔒**
+**httpcheck v1.4.2 has been released! 🎉**
 
-✅ **NEW in v1.4.1:**
-- **Security Patches**: Updated dependencies (requests 2.32.5, urllib3 2.5.0)
-- **Improved Entry Point**: Refactored CLI to proper package function
-- **Mypy Support**: Added type checking configuration
-- **Pytest Fix**: Resolved asyncio deprecation warning
+✅ **NEW in v1.4.2 (Published to PyPI):**
+- **Structured Logging**: --debug, --log-file, --log-json flags for production monitoring
+- **Comprehensive Testing**: 297 tests with 88% coverage (CLI: 94%)
+- **Professional Documentation**: 24-page documentation with ReadTheDocs theme
+- **Performance Benchmarks**: 18 automated regression tests
+- **PyPI Published**: Available via `pip install httpcheck`
+- **Automated Publishing**: GitHub Actions with Trusted Publishers (OIDC)
 
-✅ **v1.4.0 Foundation:**
+✅ **v1.4.0-1.4.1 Foundation:**
 - **Modular Architecture**: 8 specialized modules
-- **Enhanced Security**: Enterprise-grade input validation
-- **Comprehensive Testing**: 88% test coverage with 190 test cases
+- **Enhanced Security**: Enterprise-grade input validation with pip-audit clean
 - **Multiple Output Formats**: JSON and CSV support
 - **Advanced Request Control**: Custom headers, SSL options
-- **Package Installation**: `pip install -e .`
 
 🚀 **Next: v1.5.0 Development Focus**
 - **Async I/O**: 2-3x performance improvement for large site lists
@@ -46,6 +49,38 @@ See detailed plans in:
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Technical implementation guide
 - [TODO.md](TODO.md) - Current prioritized task list
 - [ROADMAP.md](ROADMAP.md) - Long-term vision through v2.0.0
+
+## 📦 Installation
+
+### From PyPI (Recommended)
+
+```bash
+pip install httpcheck
+```
+
+### From Source
+
+```bash
+git clone https://github.com/docdyhr/httpcheck.git
+cd httpcheck
+pip install -e .
+```
+
+### With Optional Dependencies
+
+```bash
+# For macOS menu bar app
+pip install httpcheck[macos]
+
+# For development
+pip install httpcheck[dev]
+```
+
+### Upgrade to Latest Version
+
+```bash
+pip install --upgrade httpcheck
+```
 
 ## usage:
 
