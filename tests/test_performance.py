@@ -163,27 +163,32 @@ class TestValidationPerformance:
 class TestTLDManagerPerformance:
     """Performance tests for TLD management."""
 
-    @patch("httpcheck.tld_manager.TLDManager._download_tld_list")
-    def test_benchmark_tld_validation(self, mock_download, benchmark, tmp_path):
+    def test_benchmark_tld_validation(self, benchmark, tmp_path):
         """Benchmark TLD validation."""
-        # Mock TLD list
-        mock_download.return_value = ["com", "org", "net"]
+        # Create a simple TLD cache file
+        cache_file = tmp_path / "tld_cache.json"
+        import json
 
-        # Initialize manager
-        manager = TLDManager(cache_dir=str(tmp_path))
+        cache_file.write_text(
+            json.dumps(
+                {
+                    "tlds": ["com", "org", "net"],
+                    "timestamp": 0,  # Old timestamp to avoid refresh
+                }
+            )
+        )
+
+        # Initialize manager with cache
+        manager = TLDManager(cache_dir=str(tmp_path), force_update=False)
 
         # Benchmark validation
         result = benchmark(manager.validate_tld, "example.com")
         assert result is None  # No exception means valid
 
-    @patch("httpcheck.tld_manager.TLDManager._download_tld_list")
-    def test_benchmark_tld_manager_initialization(
-        self, mock_download, benchmark, tmp_path
-    ):
-        """Benchmark TLD manager initialization."""
-        mock_download.return_value = ["com", "org", "net"] * 100  # Larger list
-
-        manager = benchmark(TLDManager, cache_dir=str(tmp_path))
+    def test_benchmark_tld_manager_with_local_file(self, benchmark, tmp_path):
+        """Benchmark TLD manager using local file."""
+        # TLDManager will fall back to local file if cache doesn't exist
+        manager = benchmark(TLDManager, cache_dir=str(tmp_path), force_update=False)
         assert manager is not None
 
 
