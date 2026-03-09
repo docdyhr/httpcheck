@@ -1,0 +1,4 @@
+[bandit]
+# Limit scanning to project sources; skip virtualenvs, build outputs, and coverage artifacts.
+exclude: .git,.venv,dist,build,htmlcov,.pytest_cache,httpcheck.egg-info,examples,docs,scripts
+skips: B101
