@@ -12,7 +12,7 @@
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
-* **Current Version**: 1.4.2 (Enterprise-Grade Improvements)
+* **Current Version**: 1.4.3 (Enterprise-Grade Improvements)
 * **Target Version**: 1.5.0 (Performance & Configuration Features)
 * **Programming Language**: Python 3.9+
 * **Author**: Thomas Juul Dyhr
@@ -22,9 +22,9 @@
 
 ## 🚀 Release Status
 
-**httpcheck v1.4.2 has been released! 🎉**
+**httpcheck v1.4.3 has been released! 🎉**
 
-✅ **NEW in v1.4.2 (Published to PyPI):**
+✅ **NEW in v1.4.3 (Published to PyPI):**
 - **Structured Logging**: --debug, --log-file, --log-json flags for production monitoring
 - **Comprehensive Testing**: 297 tests with 88% coverage (CLI: 94%)
 - **Professional Documentation**: 24-page documentation with ReadTheDocs theme

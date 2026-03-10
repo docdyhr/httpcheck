@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "httpcheck"
-version = "1.4.2"
+version = "1.4.3"
 description = "HTTP status code checker with advanced features"
 authors = [{ name = "Thomas Juul Dyhr", email = "thomas@dyhr.com" }]
 license = { text = "MIT" }

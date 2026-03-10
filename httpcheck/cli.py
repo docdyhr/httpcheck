@@ -27,7 +27,7 @@ CLI_DOC = """Simple command line program to check website status.
 
 Author: Thomas Juul Dyhr thomas@dyhr.com
 Purpose: Check one or more websites status
-Version: 1.4.1
+Version: 1.4.3
 """
 
 

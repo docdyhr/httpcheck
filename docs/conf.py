@@ -15,8 +15,8 @@ project = "httpcheck"
 copyright = "2026, Thomas Juul Dyhr"
 author = "Thomas Juul Dyhr"
 
-version = "1.4.2"
-release = "1.4.2"
+version = "1.4.3"
+release = "1.4.3"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
