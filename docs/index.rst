@@ -11,6 +11,10 @@ httpcheck Documentation
    :target: https://github.com/psf/black
    :alt: Code style: black
 
+.. image:: https://img.shields.io/badge/docs-readthedocs-brightgreen
+   :target: https://httpcheck.readthedocs.io/
+   :alt: Documentation on Read the Docs
+
 Quick Start
 -----------
 

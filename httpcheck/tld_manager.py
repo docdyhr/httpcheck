@@ -11,16 +11,8 @@ from .common import InvalidTLDException
 
 
 class TLDManager:
-    """Manager for TLD (Top-Level Domain) operations with caching and auto-updates.
+    """Manager for TLD (Top-Level Domain) operations with caching and auto-updates."""
 
-    This class handles TLD validation against the Public Suffix List with:
-    - Memory caching for better performance
-    - Disk-based caching for persistence between runs
-    - Automatic updates of the TLD list
-    - Flexible configuration options
-    """
-
-    # Singleton instance
     _instance = None
 
     # Default TLD source URL from Public Suffix List
@@ -32,18 +24,26 @@ class TLDManager:
     DEFAULT_CACHE_DAYS = 30
 
     def __new__(cls, *args, **kwargs):
-        """Ensure only one instance of TLDManager exists (singleton pattern)."""
-        if cls._instance is None:
+        cache_dir = kwargs.get("cache_dir")
+        needs_new = cls._instance is None
+        cache_mismatch = False
+
+        if cls._instance is not None and cache_dir:
+            cache_mismatch = getattr(cls._instance, "cache_path", None) != cache_dir
+
+        if needs_new or cache_mismatch:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
+
         return cls._instance
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-positional-arguments
         self,
         force_update=False,
         cache_days=None,
         verbose=False,
         warning_only=False,
+        cache_dir=None,
     ):
         """Initialize the TLD manager.
 
@@ -52,15 +52,17 @@ class TLDManager:
             cache_days: Number of days to keep the cache valid (default: 30)
             verbose: Whether to print verbose output
             warning_only: If True, invalid TLDs will produce warnings instead of errors
+            cache_dir: Optional custom cache directory (useful for tests)
         """
-        # Skip initialization if already initialized (singleton pattern)
-        if self._initialized:
+        if getattr(self, "_initialized", False) and (
+            cache_dir is None or cache_dir == getattr(self, "cache_path", None)
+        ):
             return
 
         self.verbose = verbose
         self.warning_only = warning_only
         self.cache_days = cache_days or self.DEFAULT_CACHE_DAYS
-        self.cache_path = self.DEFAULT_CACHE_PATH
+        self.cache_path = cache_dir or self.DEFAULT_CACHE_PATH
         self.cache_file = os.path.join(self.cache_path, self.DEFAULT_CACHE_FILE)
         self.tlds = set()  # Use a set for O(1) lookups
         self.update_time = None
@@ -74,8 +76,13 @@ class TLDManager:
 
     def _load_tld_data(self, force_update=False):
         """Load TLD data from cache or source file."""
-        # Check if we need to update based on cache age or forced update
-        if force_update or not self._load_from_cache():
+        cache_loaded = self._load_from_cache()
+        local_loaded = False
+
+        if not cache_loaded and not force_update:
+            local_loaded = self._load_from_local_file()
+
+        if force_update or not cache_loaded:
             try:
                 self._update_tld_list()
             except Exception as e:
@@ -84,6 +91,13 @@ class TLDManager:
                 # If update fails and we don't have a cache, try to load from local file
                 if not self.tlds:
                     self._load_from_local_file()
+
+        if not self.tlds and local_loaded:
+            # Local file existed but was empty/invalid; attempt network update
+            try:
+                self._update_tld_list()
+            except Exception:
+                pass
 
     def _load_from_cache(self):
         """Load TLD data from the cache file if it exists and is not expired."""
@@ -105,8 +119,15 @@ class TLDManager:
             # Load cache from JSON
             with open(self.cache_file, encoding="utf-8") as f:
                 cache_data = json.load(f)
-                self.tlds = set(cache_data["tlds"])
-                self.update_time = datetime.fromisoformat(cache_data["update_time"])
+                self.tlds = set(cache_data.get("tlds", []))
+                if "update_time" in cache_data:
+                    self.update_time = datetime.fromisoformat(cache_data["update_time"])
+                elif "timestamp" in cache_data:
+                    self.update_time = datetime.fromtimestamp(cache_data["timestamp"])
+                else:
+                    self.update_time = datetime.fromtimestamp(
+                        os.path.getmtime(self.cache_file)
+                    )
 
             if self.verbose:
                 print(
@@ -221,8 +242,9 @@ class TLDManager:
         if not self.tlds:
             raise InvalidTLDException("TLD list is empty. Cannot validate TLDs.")
 
-        parsed_url = urlparse(url)
-        url_elements = parsed_url.netloc.split(".")
+        parsed_url = urlparse(url if "://" in url else f"http://{url}")
+        host = parsed_url.netloc or parsed_url.path
+        url_elements = host.split(".")
 
         for i in range(-len(url_elements), 0):
             last_i_elements = url_elements[i:]

@@ -72,6 +72,9 @@ Request Options
 ``--workers N``
   Number of concurrent workers for fast mode (default: 10)
 
+``--async``
+  Use async httpx-based checker (concurrency uses ``--workers``; mutually exclusive with ``--fast``)
+
 File Input
 ~~~~~~~~~~
 

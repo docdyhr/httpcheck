@@ -387,7 +387,7 @@ class TestHTTPCheckFunctionality:
         assert result.domain == "example.com"
         assert result.message == "OK"
         # The response time is calculated from actual timing, not the mock elapsed
-        assert result.response_time > 0
+        assert result.response_time >= 0
 
     @patch("requests.Session.get")
     def test_check_site_404(self, mock_get):

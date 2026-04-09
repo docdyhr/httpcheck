@@ -5,6 +5,7 @@ All CLI logic is centralized here for proper package integration.
 """
 
 import argparse
+import asyncio
 import concurrent.futures
 import sys
 import textwrap
@@ -14,6 +15,7 @@ from urllib.parse import urlparse
 from tqdm import tqdm
 
 # Import from local modules
+from .async_site_checker import async_check_sites
 from .common import VERSION, InvalidTLDException, SiteStatus, parse_custom_headers
 from .file_handler import FileInputHandler, url_validation
 from .logger import get_logger, setup_logger
@@ -124,6 +126,12 @@ def _add_request_arguments(parser):
         type=int,
         default=10,
         help="number of concurrent workers for fast mode",
+    )
+    parser.add_argument(
+        "--async",
+        dest="async_mode",
+        action="store_true",
+        help="use async HTTP client (httpx) for concurrent checks",
     )
     parser.add_argument(
         "--retry-delay",
@@ -333,6 +341,9 @@ def get_arguments():
             "use --help for more info."
         )
 
+    if options.async_mode and options.fast:
+        parser.error("Use either --async or --fast, not both.")
+
     options.site = validated_sites
     return options
 
@@ -485,6 +496,59 @@ def check_sites_parallel(options, successful, failures, failed_sites):
     return successful, failures
 
 
+def check_sites_async(options, successful, failures, failed_sites):
+    """Check sites concurrently using async httpx client."""
+    results = []
+    custom_headers = parse_custom_headers(options.headers)
+
+    try:
+        site_statuses = asyncio.run(
+            async_check_sites(
+                options.site,
+                timeout=options.timeout,
+                retries=options.retries,
+                follow_redirects=options.follow_redirects,
+                max_redirects=options.max_redirects,
+                custom_headers=custom_headers,
+                verify_ssl=options.verify_ssl,
+                retry_delay=options.retry_delay,
+                concurrency=options.workers,
+            )
+        )
+    except Exception as e:
+        logger = get_logger()
+        logger.error("Async check failed: %s", str(e))
+        return successful, failures + len(options.site)
+
+    # Process results
+    site_statuses = list(site_statuses)
+    if options.output_format == "table":
+        for status in site_statuses:
+            formatted_output = print_format(
+                status,
+                options.quiet,
+                options.verbose,
+                options.code,
+                show_redirect_timing=options.show_redirect_timing,
+                output_format=options.output_format,
+            )
+            results.append(formatted_output)
+
+    for site, status in zip(options.site, site_statuses):
+        successful, failures = process_site_status(
+            status, site, successful, failures, failed_sites
+        )
+
+    if options.output_format == "json":
+        print(format_json_list(site_statuses, options.verbose))
+    elif options.output_format == "csv":
+        print(format_csv_list(site_statuses, options.verbose))
+    else:
+        print("\n".join(filter(None, results)))
+
+    return successful, failures
+
+
 def check_tlds(options, failures, failed_sites):
     """Check TLDs if requested."""
     logger = get_logger()
@@ -545,10 +609,11 @@ def _handle_stdin_input(options):
 
 def _process_sites(options, successful, failures, failed_sites):
     """Process sites either serially or in parallel."""
-    if not options.fast:
-        return check_sites_serial(options, successful, failures, failed_sites)
-    else:
+    if getattr(options, "async_mode", False) is True:
+        return check_sites_async(options, successful, failures, failed_sites)
+    if getattr(options, "fast", False) is True:
         return check_sites_parallel(options, successful, failures, failed_sites)
+    return check_sites_serial(options, successful, failures, failed_sites)
 
 
 def _send_completion_notification(total_sites, successful, failures, failed_sites):

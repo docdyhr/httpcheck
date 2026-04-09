@@ -6,6 +6,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/docdyhr/httpcheck)](https://github.com/docdyhr/httpcheck/issues)
 ![GitHub repo size](https://img.shields.io/github/repo-size/docdyhr/httpcheck)
 ![GitHub](https://img.shields.io/github/license/docdyhr/httpcheck)
+[![Docs](https://img.shields.io/badge/docs-readthedocs-brightgreen)](https://httpcheck.readthedocs.io/)
 
 # Check Websites HTTP Status Codes with httpcheck
 
@@ -40,6 +41,7 @@
 
 🚀 **Next: v1.5.0 Development Focus**
 - **Async I/O**: 2-3x performance improvement for large site lists
+- **Experimental Async Flag**: Try `--async` to use the new httpx-based fast path
 - **Configuration Files**: User-defined defaults and settings
 - **Monitoring Mode**: Continuous site monitoring with notifications
 - **Enhanced UX**: Colored output and improved progress reporting

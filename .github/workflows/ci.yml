@@ -123,11 +123,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install safety bandit semgrep
+          pip install pip-audit bandit semgrep
 
-      - name: Run Safety security check
+      - name: Run pip-audit security check
         run: |
-          safety check --json
+          pip-audit
 
       - name: Run Bandit security linter
         run: |

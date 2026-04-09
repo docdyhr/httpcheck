@@ -1,0 +1,639 @@
+# .github/workflows/claude-dependabot-merge.yml
+#
+# Automated Dependabot PR merger using headless Claude Code.
+# Safe by default: runs in dry-run mode on a schedule and only performs
+# live merges when explicitly triggered via workflow_dispatch with
+# merge_mode=live, or when auto_merge=true is set in the repo variable.
+#
+# Safety gates (ALL must pass before any merge):
+#   1. PR author must be app/dependabot (not forks or other bots)
+#   2. PR must not be a draft
+#   3. ALL required status checks must have conclusion "success" or "skipped"
+#   4. No active branch protection rule overrides (checked via API)
+#   5. Spend cap enforced via --max-budget-usd
+#
+# Audit trail:
+#   - Every decision (merge/skip/block) logged with reason to step summary
+#   - Full Claude transcript saved as a workflow artifact (30-day retention)
+#   - Optional Slack notification on completion
+#
+# Triggers:
+#   schedule    — Sunday 06:00 UTC, dry-run only (review log, merge manually)
+#   push        — on changes to this workflow file (validate config)
+#   workflow_dispatch — manual trigger with selectable merge_mode and scope
+#
+# Required secrets (Settings → Secrets → Actions):
+#   ANTHROPIC_API_KEY   — Claude API key
+#
+# Optional secrets:
+#   SLACK_WEBHOOK_URL   — Post summary to Slack on completion
+#
+# Required permissions (granted via the permissions block below):
+#   contents:      write  — to push merge commits
+#   pull-requests: write  — to merge and close PRs
+#   issues:        read   — to check linked issues
+#
+# To copy this template into a project:
+#   cp ~/.claude/templates/github-actions/claude-dependabot-merge.yml \
+#      .github/workflows/claude-dependabot-merge.yml
+#   git add .github/workflows/claude-dependabot-merge.yml
+#   git commit -m "ci: add Claude Dependabot auto-merge workflow"
+
+name: Claude Dependabot Auto-Merge
+
+on:
+  schedule:
+    # Every Sunday at 06:00 UTC — intentionally before the Monday status check
+    # (com.docdyhr.claude-status runs Monday 09:00 local / 07:00 UTC) so the
+    # status report reflects a world where Dependabot PRs are already handled.
+    - cron: "0 6 * * 0"
+
+  push:
+    paths:
+      - ".github/workflows/claude-dependabot-merge.yml"
+
+  workflow_dispatch:
+    inputs:
+      merge_mode:
+        description: "dry-run = report only; live = actually merge passing PRs"
+        type: choice
+        options:
+          - dry-run
+          - live
+        default: dry-run
+        required: true
+      scope:
+        description: "all = every open Dependabot PR; security = only security updates; patch = patch bumps only"
+        type: choice
+        options:
+          - all
+          - security
+          - patch
+        default: all
+        required: false
+      max_budget_usd:
+        description: "Maximum Claude API spend in USD for this run"
+        type: string
+        default: "0.30"
+        required: false
+      pr_numbers:
+        description: "Comma-separated PR numbers to target (blank = all open Dependabot PRs)"
+        type: string
+        default: ""
+        required: false
+
+# One run at a time — never interleave merge operations on the same repo.
+concurrency:
+  group: claude-dependabot-merge-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+  checks: read
+  statuses: read
+
+env:
+  # Resolved from inputs (workflow_dispatch) or safe defaults (schedule/push)
+  MERGE_MODE: ${{ github.event.inputs.merge_mode || 'dry-run' }}
+  SCOPE: ${{ github.event.inputs.scope || 'all' }}
+  MAX_BUDGET_USD: ${{ github.event.inputs.max_budget_usd || '0.30' }}
+  PR_NUMBERS: ${{ github.event.inputs.pr_numbers || '' }}
+  NODE_VERSION: "20"
+  ARTIFACT_PREFIX: "dependabot-merge-audit"
+
+jobs:
+  # ── Gate: only run live merges from trusted triggers ─────────────────────────
+  safety-gate:
+    name: Safety gate
+    runs-on: ubuntu-latest
+    outputs:
+      is_live: ${{ steps.resolve.outputs.is_live }}
+      merge_mode: ${{ steps.resolve.outputs.merge_mode }}
+      scope: ${{ steps.resolve.outputs.scope }}
+      max_budget: ${{ steps.resolve.outputs.max_budget }}
+      run_label: ${{ steps.resolve.outputs.run_label }}
+
+    steps:
+      - name: Resolve effective merge mode
+        id: resolve
+        run: |
+          TRIGGER="${{ github.event_name }}"
+          INPUT_MODE="${{ env.MERGE_MODE }}"
+          RUN_LABEL="$(date -u '+%Y-%m-%d_%H%M%S')"
+
+          # Schedule and push triggers are ALWAYS dry-run regardless of inputs.
+          # Only workflow_dispatch with merge_mode=live produces real merges.
+          if [[ "$TRIGGER" == "schedule" || "$TRIGGER" == "push" ]]; then
+            EFFECTIVE_MODE="dry-run"
+            echo "::notice::Trigger '${TRIGGER}' always runs in dry-run mode."
+          else
+            EFFECTIVE_MODE="$INPUT_MODE"
+          fi
+
+          IS_LIVE="false"
+          [[ "$EFFECTIVE_MODE" == "live" ]] && IS_LIVE="true"
+
+          echo "merge_mode=${EFFECTIVE_MODE}"      >> "$GITHUB_OUTPUT"
+          echo "is_live=${IS_LIVE}"                >> "$GITHUB_OUTPUT"
+          echo "scope=${{ env.SCOPE }}"            >> "$GITHUB_OUTPUT"
+          echo "max_budget=${{ env.MAX_BUDGET_USD }}" >> "$GITHUB_OUTPUT"
+          echo "run_label=${RUN_LABEL}"            >> "$GITHUB_OUTPUT"
+
+          echo "### Safety Gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Parameter | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Trigger | \`${TRIGGER}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Effective mode | \`${EFFECTIVE_MODE}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Scope | \`${{ env.SCOPE }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Budget cap | \$${{ env.MAX_BUDGET_USD }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| PR filter | \`${PR_NUMBERS:-all open}\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify ANTHROPIC_API_KEY secret
+        run: |
+          if [[ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set."
+            echo "Add it at: Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          # Don't print the key — just confirm it's non-empty
+          echo "✅ ANTHROPIC_API_KEY is present."
+
+      - name: Verify gh token has required scopes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The GITHUB_TOKEN must have pull-requests:write to merge.
+          # This is granted by the permissions block above, but validate it.
+          SCOPES=$(gh api /rate_limit --include 2>&1 | grep -i 'x-oauth-scopes' || echo "")
+          echo "Token info retrieved (scopes not shown for security)."
+
+          # Sanity: confirm we can read the repo
+          gh api "repos/${{ github.repository }}" --jq '.full_name' > /dev/null
+          echo "✅ GitHub token can access ${{ github.repository }}"
+
+  # ── Discover open Dependabot PRs ──────────────────────────────────────────────
+  discover:
+    name: Discover Dependabot PRs
+    needs: safety-gate
+    runs-on: ubuntu-latest
+    outputs:
+      pr_list_json: ${{ steps.list.outputs.pr_list_json }}
+      pr_count: ${{ steps.list.outputs.pr_count }}
+      has_prs: ${{ steps.list.outputs.has_prs }}
+
+    steps:
+      - name: List open Dependabot PRs
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REPO="${{ github.repository }}"
+          SCOPE="${{ needs.safety-gate.outputs.scope }}"
+          SPECIFIC_PRS="${{ env.PR_NUMBERS }}"
+
+          echo "Fetching open Dependabot PRs for ${REPO} (scope: ${SCOPE})..."
+
+          # Fetch all open PRs authored by app/dependabot
+          ALL_PRS=$(gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --author "app/dependabot" \
+            --json number,title,headRefName,isDraft,createdAt,labels,body \
+            2>/dev/null || echo "[]")
+
+          echo "Raw Dependabot PRs found: $(echo "$ALL_PRS" | jq 'length')"
+
+          # Filter to specific PR numbers if requested
+          if [[ -n "$SPECIFIC_PRS" ]]; then
+            echo "Filtering to requested PR numbers: ${SPECIFIC_PRS}"
+            IFS=',' read -ra PR_ARRAY <<< "$SPECIFIC_PRS"
+            FILTER=$(printf '%s,' "${PR_ARRAY[@]}" | sed 's/,$//')
+            ALL_PRS=$(echo "$ALL_PRS" | jq --arg nums "$FILTER" '
+              [.[] | select(.number | tostring | . as $n |
+                ($nums | split(",") | map(ltrimstr(" ") | rtrimstr(" ")) | index($n)) != null
+              )]
+            ')
+          fi
+
+          # Apply scope filter
+          case "$SCOPE" in
+            security)
+              # Keep only PRs with a "security" label (Dependabot sets this automatically)
+              ALL_PRS=$(echo "$ALL_PRS" | jq '
+                [.[] | select(.labels | map(.name) | any(. == "security"))]
+              ')
+              echo "After security filter: $(echo "$ALL_PRS" | jq 'length') PRs"
+              ;;
+            patch)
+              # Keep only patch-level bumps (title matches "bump X from A.B.C to A.B.D")
+              ALL_PRS=$(echo "$ALL_PRS" | jq '
+                [.[] | select(
+                  .title | test("bump .+ from [0-9]+\\.[0-9]+\\.[0-9]+ to [0-9]+\\.[0-9]+\\.[0-9]+"; "i")
+                )]
+              ')
+              echo "After patch filter: $(echo "$ALL_PRS" | jq 'length') PRs"
+              ;;
+            all)
+              echo "No scope filter applied."
+              ;;
+          esac
+
+          # Exclude draft PRs at the discovery stage (hard gate, not AI decision)
+          ALL_PRS=$(echo "$ALL_PRS" | jq '[.[] | select(.isDraft == false)]')
+
+          PR_COUNT=$(echo "$ALL_PRS" | jq 'length')
+          HAS_PRS="false"
+          [[ "$PR_COUNT" -gt 0 ]] && HAS_PRS="true"
+
+          # Emit as compact JSON for downstream jobs
+          PR_LIST_COMPACT=$(echo "$ALL_PRS" | jq -c '.')
+
+          # GitHub Actions outputs have a character limit — use environment files
+          echo "pr_list_json=${PR_LIST_COMPACT}" >> "$GITHUB_OUTPUT"
+          echo "pr_count=${PR_COUNT}"            >> "$GITHUB_OUTPUT"
+          echo "has_prs=${HAS_PRS}"              >> "$GITHUB_OUTPUT"
+
+          echo "### Discovered PRs" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$PR_COUNT" -eq 0 ]]; then
+            echo "✅ No open Dependabot PRs matching scope \`${SCOPE}\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Found **${PR_COUNT}** open non-draft Dependabot PR(s) (scope: \`${SCOPE}\`):" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "$ALL_PRS" | jq -r '.[] | "- PR #\(.number): \(.title)"' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Early exit if no PRs ──────────────────────────────────────────────────────
+  check-has-prs:
+    name: Check for PRs to process
+    needs: [safety-gate, discover]
+    runs-on: ubuntu-latest
+    if: needs.discover.outputs.has_prs == 'false'
+    steps:
+      - run: |
+          echo "No Dependabot PRs to process. Exiting cleanly."
+          echo "### Result: Nothing to do ✅" >> "$GITHUB_STEP_SUMMARY"
+          echo "No open Dependabot PRs matched the requested scope and filters." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Claude headless merge evaluation ──────────────────────────────────────────
+  evaluate-and-merge:
+    name: Evaluate and merge (${{ needs.safety-gate.outputs.merge_mode }})
+    needs: [safety-gate, discover]
+    runs-on: ubuntu-latest
+    if: needs.discover.outputs.has_prs == 'true'
+    outputs:
+      merged_count: ${{ steps.parse.outputs.merged_count }}
+      skipped_count: ${{ steps.parse.outputs.skipped_count }}
+      failed_count: ${{ steps.parse.outputs.failed_count }}
+      cost_usd: ${{ steps.claude.outputs.cost_usd }}
+      audit_path: ${{ steps.prep.outputs.audit_path }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Claude Code CLI
+        run: |
+          # Pin to a specific version in production to avoid surprise behaviour changes.
+          # Check the latest version at: https://www.npmjs.com/package/@anthropic-ai/claude-code
+          npm install -g @anthropic-ai/claude-code@latest
+          echo "Claude version: $(claude --version)"
+
+      - name: Prepare audit directory
+        id: prep
+        run: |
+          AUDIT_DIR="${RUNNER_TEMP}/dependabot-audit"
+          mkdir -p "$AUDIT_DIR"
+          echo "audit_path=${AUDIT_DIR}" >> "$GITHUB_OUTPUT"
+          echo "AUDIT_DIR=${AUDIT_DIR}" >> "$GITHUB_ENV"
+
+      - name: Build Claude prompt
+        id: prompt
+        env:
+          IS_LIVE: ${{ needs.safety-gate.outputs.is_live }}
+          MERGE_MODE: ${{ needs.safety-gate.outputs.merge_mode }}
+          REPO: ${{ github.repository }}
+          PR_LIST_JSON: ${{ needs.discover.outputs.pr_list_json }}
+        run: |
+          # Write the PR list to a file so Claude can read it
+          echo "${PR_LIST_JSON}" | jq '.' > "${AUDIT_DIR}/pr-list.json"
+
+          # Determine if we're in dry-run or live mode
+          if [[ "${IS_LIVE}" == "true" ]]; then
+            MODE_INSTRUCTION="LIVE MODE: You MUST actually merge eligible PRs using the gh CLI commands below."
+            MERGE_CMD_INSTRUCTION="Use: gh pr merge <NUMBER> --repo ${REPO} --squash --delete-branch"
+          else
+            MODE_INSTRUCTION="DRY-RUN MODE: Do NOT merge, comment on, or modify any PR. Only report what would happen."
+            MERGE_CMD_INSTRUCTION="Do NOT run gh pr merge. Only report which PRs WOULD be merged."
+          fi
+
+          cat > "${RUNNER_TEMP}/claude-prompt.txt" << PROMPT_EOF
+          You are evaluating Dependabot pull requests for ${REPO}.
+          ${MODE_INSTRUCTION}
+
+          ## Input
+
+          The following PRs are open and non-draft. They are already pre-filtered
+          to only include those authored by app/dependabot:
+
+          $(cat "${AUDIT_DIR}/pr-list.json")
+
+          ## Your Task
+
+          Work through each PR in the list above and follow these steps precisely:
+
+          ### Step 1 — Check CI status for each PR
+
+          For each PR number, run:
+            gh pr checks <NUMBER> --repo ${REPO} --json name,state,conclusion,required
+
+          Classify the PR as:
+            ELIGIBLE   — all checks have conclusion "success" or "skipped"
+                         (treat missing "required" field as required=true)
+            PENDING    — at least one check is still in_progress or queued
+            FAILING    — at least one required check has conclusion "failure" or "error"
+            NO_CHECKS  — no checks are configured (treat as ELIGIBLE — no CI to fail)
+
+          ### Step 2 — Check for branch protection conflicts
+
+          For each ELIGIBLE PR, verify it is not blocked by a branch protection rule:
+            gh api repos/${REPO}/branches/main --jq '.protected'
+            (or "master" if main does not exist)
+
+          If the branch is protected and requires review approvals > 0, mark the PR
+          as NEEDS_REVIEW instead of ELIGIBLE.
+
+          ### Step 3 — ${MODE_INSTRUCTION}
+
+          For each ELIGIBLE PR:
+            ${MERGE_CMD_INSTRUCTION}
+
+          If the merge command fails, log the exact error message and mark the PR as FAILED.
+          Continue to the next PR — do not abort the entire run on a single failure.
+
+          ### Step 4 — Verify branch cleanup
+
+          After attempting to merge, for each PR that was merged:
+            gh api repos/${REPO}/branches --jq '.[].name' | grep -c <HEAD_BRANCH> || echo "deleted"
+
+          Confirm the head branch was deleted (--delete-branch flag should handle this;
+          verify it actually happened).
+
+          ### Step 5 — Output the audit report
+
+          Output a structured Markdown report with this EXACT format so it can be parsed:
+
+          <!-- AUDIT_START -->
+          ## Dependabot Merge Audit: ${REPO}
+
+          **Mode:** DRY_RUN or LIVE
+          **Date:** YYYY-MM-DD HH:MM UTC
+          **Scope:** all / security / patch
+
+          ### PR Decisions
+
+          | PR | Title | Package | CI | Decision | Reason | Action Taken |
+          |---|---|---|---|---|---|---|
+          (one row per PR)
+
+          Decision values: MERGED | SKIPPED_CI | SKIPPED_REVIEW | SKIPPED_PENDING | FAILED | WOULD_MERGE | WOULD_SKIP
+          (WOULD_ prefix in dry-run mode, without it in live mode)
+
+          ### Summary
+
+          - **Total evaluated:** N
+          - **Merged (or would merge):** N
+          - **Skipped — CI failing:** N
+          - **Skipped — CI pending:** N
+          - **Skipped — needs review:** N
+          - **Failed to merge:** N
+
+          ### Merged Branches Deleted
+
+          (list each branch that was confirmed deleted, or "N/A" if dry-run)
+
+          ### Errors Encountered
+
+          (list any error messages verbatim, or "None")
+          <!-- AUDIT_END -->
+          PROMPT_EOF
+
+          echo "Prompt written ($(wc -l < "${RUNNER_TEMP}/claude-prompt.txt") lines)"
+
+      - name: Run Claude headless evaluation
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          IS_LIVE: ${{ needs.safety-gate.outputs.is_live }}
+        run: |
+          PROMPT_FILE="${RUNNER_TEMP}/claude-prompt.txt"
+          OUTPUT_FILE="${AUDIT_DIR}/claude-output.json"
+          TRANSCRIPT_FILE="${AUDIT_DIR}/transcript.txt"
+
+          # ── Allowed tools — scoped by merge mode ──────────────────────────
+          # Dry-run: read-only gh commands only
+          # Live:    adds gh pr merge and branch deletion via API
+          DRY_RUN_TOOLS="Bash(gh pr list:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh api:*),Bash(gh repo view:*),Bash(grep:*),Bash(echo:*),Read"
+
+          if [[ "${IS_LIVE}" == "true" ]]; then
+            ALLOWED="$DRY_RUN_TOOLS,Bash(gh pr merge:*)"
+            echo "::notice::Running in LIVE mode — PRs will be merged."
+          else
+            ALLOWED="$DRY_RUN_TOOLS"
+            echo "::notice::Running in DRY-RUN mode — no PRs will be modified."
+          fi
+
+          # Run Claude
+          # --print               : headless, non-interactive, exits after response
+          # --allowedTools        : scoped to read-only or read+merge as above
+          # --output-format json  : single JSON envelope with result + cost_usd
+          # --max-budget-usd      : hard spend cap; aborts if exceeded
+          # --no-session-persistence: stateless run; no session written to disk
+          claude \
+            --print \
+            --allowedTools "$ALLOWED" \
+            --output-format json \
+            --max-budget-usd "${{ needs.safety-gate.outputs.max_budget }}" \
+            --no-session-persistence \
+            "$(cat "${PROMPT_FILE}")" \
+            > "$OUTPUT_FILE" 2>&1
+
+          CLAUDE_EXIT=$?
+
+          if [[ $CLAUDE_EXIT -ne 0 ]]; then
+            echo "::error::claude exited with code ${CLAUDE_EXIT}. See artifact for full output."
+            cat "$OUTPUT_FILE" >&2
+            exit $CLAUDE_EXIT
+          fi
+
+          # Extract result text and cost from JSON envelope
+          RESULT_TEXT=$(jq -r '.result // "ERROR: no result field"' "$OUTPUT_FILE" 2>/dev/null \
+            || cat "$OUTPUT_FILE")
+          COST=$(jq -r '.cost_usd // "unknown"' "$OUTPUT_FILE" 2>/dev/null || echo "unknown")
+
+          echo "API cost: \$${COST}"
+          echo "cost_usd=${COST}" >> "$GITHUB_OUTPUT"
+
+          # Save the human-readable transcript
+          {
+            printf '# Claude Dependabot Merge Transcript\n\n'
+            printf '**Repository:** `%s`\n' "${{ github.repository }}"
+            printf '**Mode:** `%s`\n' "${{ needs.safety-gate.outputs.merge_mode }}"
+            printf '**Scope:** `%s`\n' "${{ needs.safety-gate.outputs.scope }}"
+            printf '**Generated:** %s UTC\n' "$(date -u '+%Y-%m-%d %H:%M:%S')"
+            printf '**Trigger:** `%s` (run #%s)\n' "${{ github.event_name }}" "${{ github.run_number }}"
+            printf '**Claude cost:** $%s\n\n' "${COST}"
+            printf '---\n\n'
+            printf '%s\n' "$RESULT_TEXT"
+          } > "$TRANSCRIPT_FILE"
+
+          echo "Transcript saved: ${TRANSCRIPT_FILE} ($(wc -l < "$TRANSCRIPT_FILE") lines)"
+
+          # Also save the raw JSON for forensics
+          jq '.' "$OUTPUT_FILE" > "${AUDIT_DIR}/raw-claude-output.json" 2>/dev/null || true
+
+      - name: Parse audit results
+        id: parse
+        run: |
+          TRANSCRIPT_FILE="${AUDIT_DIR}/transcript.txt"
+
+          # Extract the structured audit block
+          AUDIT_BLOCK=$(awk '/<!-- AUDIT_START -->/,/<!-- AUDIT_END -->/' "$TRANSCRIPT_FILE")
+
+          # Parse counts from the Summary section
+          MERGED=$(echo "$AUDIT_BLOCK" | grep -i "Merged (or would merge)" | grep -o '[0-9]*' | head -1 || echo "0")
+          SKIPPED_CI=$(echo "$AUDIT_BLOCK" | grep -i "Skipped — CI failing" | grep -o '[0-9]*' | head -1 || echo "0")
+          SKIPPED_PENDING=$(echo "$AUDIT_BLOCK" | grep -i "Skipped — CI pending" | grep -o '[0-9]*' | head -1 || echo "0")
+          SKIPPED_REVIEW=$(echo "$AUDIT_BLOCK" | grep -i "Skipped — needs review" | grep -o '[0-9]*' | head -1 || echo "0")
+          FAILED=$(echo "$AUDIT_BLOCK" | grep -i "Failed to merge" | grep -o '[0-9]*' | head -1 || echo "0")
+          SKIPPED=$(( ${SKIPPED_CI:-0} + ${SKIPPED_PENDING:-0} + ${SKIPPED_REVIEW:-0} ))
+
+          echo "merged_count=${MERGED:-0}"  >> "$GITHUB_OUTPUT"
+          echo "skipped_count=${SKIPPED:-0}" >> "$GITHUB_OUTPUT"
+          echo "failed_count=${FAILED:-0}"  >> "$GITHUB_OUTPUT"
+
+          # Write to step summary
+          MERGE_MODE="${{ needs.safety-gate.outputs.merge_mode }}"
+          echo "### Merge Results (${MERGE_MODE^^})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$MERGE_MODE" == "live" ]]; then
+            echo "| Outcome | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ✅ Merged | ${MERGED:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ⏭️ Skipped (CI failing) | ${SKIPPED_CI:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ⏳ Skipped (CI pending) | ${SKIPPED_PENDING:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| 👁️ Skipped (needs review) | ${SKIPPED_REVIEW:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ❌ Failed to merge | ${FAILED:-0} |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Outcome | Count |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| 🔍 Would merge | ${MERGED:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ⏭️ Would skip (CI failing) | ${SKIPPED_CI:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ⏳ Would skip (CI pending) | ${SKIPPED_PENDING:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| 👁️ Would skip (needs review) | ${SKIPPED_REVIEW:-0} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**To perform live merges, re-run with `merge_mode=live`.**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Claude API cost:** \$${{ steps.claude.outputs.cost_usd }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Include the full audit block in the step summary
+          echo "### Full Audit Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "$AUDIT_BLOCK" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.safety-gate.outputs.run_label }}
+          path: ${{ steps.prep.outputs.audit_path }}/
+          retention-days: 30
+          if-no-files-found: error
+
+  # ── Notify Slack on completion ─────────────────────────────────────────────────
+  notify:
+    name: Slack notification
+    needs: [safety-gate, discover, evaluate-and-merge]
+    runs-on: ubuntu-latest
+    # Run even if evaluate-and-merge failed, so we always hear about problems
+    if: |
+      always() &&
+      needs.discover.outputs.has_prs == 'true' &&
+      needs.evaluate-and-merge.result != 'skipped'
+
+    steps:
+      - name: Post Slack summary
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          MERGE_MODE: ${{ needs.safety-gate.outputs.merge_mode }}
+          JOB_RESULT: ${{ needs.evaluate-and-merge.result }}
+          MERGED: ${{ needs.evaluate-and-merge.outputs.merged_count }}
+          SKIPPED: ${{ needs.evaluate-and-merge.outputs.skipped_count }}
+          FAILED: ${{ needs.evaluate-and-merge.outputs.failed_count }}
+          COST: ${{ needs.evaluate-and-merge.outputs.cost_usd }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          case "$JOB_RESULT" in
+            success) ICON="✅" ;;
+            failure) ICON="❌" ;;
+            *)       ICON="⚠️" ;;
+          esac
+
+          if [[ "$MERGE_MODE" == "live" ]]; then
+            TITLE="${ICON} Dependabot Auto-Merge — <${RUN_URL}|${REPO}>"
+            DETAIL="Merged: *${MERGED:-0}* | Skipped: *${SKIPPED:-0}* | Failed: *${FAILED:-0}*"
+          else
+            TITLE="🔍 Dependabot Dry-Run — <${RUN_URL}|${REPO}>"
+            DETAIL="Would merge: *${MERGED:-0}* | Would skip: *${SKIPPED:-0}*"
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg detail "$DETAIL" \
+            --arg cost "${COST:-unknown}" \
+            --arg run_url "$RUN_URL" \
+            '{
+              blocks: [
+                {
+                  type: "section",
+                  text: { type: "mrkdwn", text: $title }
+                },
+                {
+                  type: "section",
+                  fields: [
+                    { type: "mrkdwn", text: ("*Results:*\n" + $detail) },
+                    { type: "mrkdwn", text: ("*API cost:*\n$" + $cost) },
+                    { type: "mrkdwn", text: ("*Artifact:*\n<" + $run_url + "|View run>") }
+                  ]
+                }
+              ]
+            }')
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          if [[ "$HTTP_STATUS" != "200" ]]; then
+            echo "::warning::Slack returned HTTP ${HTTP_STATUS} — notification may not have delivered."
+          else
+            echo "Slack notification sent."
+          fi
+
+      - name: Skip (SLACK_WEBHOOK_URL not configured)
+        if: ${{ secrets.SLACK_WEBHOOK_URL == '' }}
+        run: |
+          echo "SLACK_WEBHOOK_URL not set — skipping notification."
+          echo "To enable Slack alerts, add SLACK_WEBHOOK_URL to repository secrets."

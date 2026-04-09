@@ -1,5 +1,10 @@
 # httpcheck Development Roadmap
 
+**Status snapshot (2026-03-11)**
+- Current release: 1.4.3 (2026-03-09)
+- Next milestone: 1.5.0 focused on async I/O + config
+- Docs: Sphinx built (24 pages), ready to host
+
 This roadmap outlines the planned development path for httpcheck, focusing on technical debt reduction, feature enhancement, and long-term architectural improvements.
 
 ## 🚀 Version 1.4.0 - Foundation & Core Features (Target: October 31, 2025)
@@ -85,7 +90,7 @@ This roadmap outlines the planned development path for httpcheck, focusing on te
 - [ ] JSON and CSV output formats working
 - [ ] Custom headers functionality implemented
 
-## 🚀 Version 1.5.0 - Advanced Features & Integration (Target: March 31, 2026)
+## 🚀 Version 1.5.0 - Advanced Features & Integration (Target: June 30, 2026)
 
 **Duration**: 12 weeks (3 months)
 **Focus**: Performance optimization, advanced features, and system integrations

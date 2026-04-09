@@ -1,0 +1,525 @@
+# .github/workflows/claude-status-check.yml
+#
+# Scheduled project health check using headless Claude Code.
+# Mirrors the local ~/.claude/scripts/status-check.sh workflow but runs
+# entirely in GitHub Actions — no local machine needed.
+#
+# Triggers:
+#   - Weekly on Monday at 07:00 UTC (before the work day starts)
+#   - On push to the workflow file itself (validate the config)
+#   - On demand via workflow_dispatch with optional inputs
+#
+# Outputs:
+#   - Markdown report uploaded as a workflow artifact (retained 30 days)
+#   - Optional GitHub issue created when health is CRITICAL
+#   - Optional Slack notification via webhook
+#
+# Required secrets (Settings → Secrets → Actions):
+#   ANTHROPIC_API_KEY   — Claude API key
+#
+# Optional secrets:
+#   SLACK_WEBHOOK_URL   — Incoming webhook for Slack notifications
+#
+# Required permissions (set at repo level or via GITHUB_TOKEN below):
+#   contents: read
+#   issues: write        — only needed when CREATE_ISSUE_ON_CRITICAL=true
+#   pull-requests: read
+
+name: Claude Status Check
+
+on:
+  schedule:
+    # Every Monday at 07:00 UTC
+    - cron: "0 7 * * 1"
+
+  push:
+    paths:
+      - ".github/workflows/claude-status-check.yml"
+
+  workflow_dispatch:
+    inputs:
+      create_issue:
+        description: "Create a GitHub issue if health is CRITICAL"
+        type: boolean
+        default: false
+        required: false
+      max_budget_usd:
+        description: "Maximum Claude API spend in USD"
+        type: string
+        default: "0.25"
+        required: false
+      sections:
+        description: "Comma-separated sections to check (prs,ci,issues,dependabot,branches) or 'all'"
+        type: string
+        default: "all"
+        required: false
+
+# Prevent concurrent status runs to avoid duplicate issues
+concurrency:
+  group: claude-status-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+env:
+  # Resolved from inputs (workflow_dispatch) or hardcoded defaults (schedule)
+  CREATE_ISSUE: ${{ github.event.inputs.create_issue || 'false' }}
+  MAX_BUDGET_USD: ${{ github.event.inputs.max_budget_usd || '0.25' }}
+  SECTIONS: ${{ github.event.inputs.sections || 'all' }}
+  # Node version for claude CLI install
+  NODE_VERSION: "20"
+  # Report artifact name prefix
+  ARTIFACT_PREFIX: "claude-status-report"
+
+jobs:
+  # ── Pre-flight ────────────────────────────────────────────────────────────────
+  preflight:
+    name: Pre-flight checks
+    runs-on: ubuntu-latest
+    outputs:
+      repo: ${{ steps.repo.outputs.repo }}
+      owner: ${{ steps.repo.outputs.owner }}
+      default_branch: ${{ steps.repo.outputs.default_branch }}
+      run_label: ${{ steps.repo.outputs.run_label }}
+    steps:
+      - name: Resolve repository metadata
+        id: repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.repository }}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          RUN_LABEL="$(date -u '+%Y-%m-%d')"
+
+          echo "owner=${OWNER}"           >> "$GITHUB_OUTPUT"
+          echo "repo=${REPO}"             >> "$GITHUB_OUTPUT"
+          echo "default_branch=${DEFAULT_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "run_label=${RUN_LABEL}"   >> "$GITHUB_OUTPUT"
+
+          echo "### Pre-flight" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |"        >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|"                >> "$GITHUB_STEP_SUMMARY"
+          echo "| Repo | \`${REPO}\` |"  >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${DEFAULT_BRANCH}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Trigger | \`${{ github.event_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Budget | \$${MAX_BUDGET_USD} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify ANTHROPIC_API_KEY is set
+        run: |
+          if [[ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set."
+            echo "Add it at: Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "✅ ANTHROPIC_API_KEY present (length: ${#ANTHROPIC_API_KEY})"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ── Health check ──────────────────────────────────────────────────────────────
+  health-check:
+    name: Run Claude health check
+    needs: preflight
+    runs-on: ubuntu-latest
+    outputs:
+      overall_health: ${{ steps.parse.outputs.overall_health }}
+      has_critical: ${{ steps.parse.outputs.has_critical }}
+      report_path: ${{ steps.report.outputs.path }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for branch staleness checks
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Install Claude Code CLI from npm.
+      # Pin to a specific version in production to avoid surprise upgrades.
+      - name: Install Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code@latest
+          echo "Claude version: $(claude --version)"
+
+      - name: Prepare report directory
+        id: report
+        run: |
+          REPORT_DIR="${RUNNER_TEMP}/status-report"
+          mkdir -p "$REPORT_DIR"
+          echo "path=${REPORT_DIR}" >> "$GITHUB_OUTPUT"
+          echo "REPORT_DIR=${REPORT_DIR}" >> "$GITHUB_ENV"
+
+      # Build the prompt inline — mirrors the /status skill content so the
+      # skill file does not need to be present in the checked-out repo.
+      - name: Build status prompt
+        id: prompt
+        env:
+          REPO: ${{ needs.preflight.outputs.repo }}
+          DEFAULT_BRANCH: ${{ needs.preflight.outputs.default_branch }}
+        run: |
+          # Write prompt to a temp file to avoid shell quoting issues
+          cat > "${RUNNER_TEMP}/status-prompt.txt" << 'PROMPT_EOF'
+          You are performing a read-only project health check.
+          Repository: ${REPO}
+          Default branch: ${DEFAULT_BRANCH}
+
+          Work through all sections below. Use only the allowed tools (gh CLI and git).
+          If a feature is not enabled (API returns 404 or 403), write "N/A" for that section.
+          Output a single self-contained Markdown document — no questions, no interactive steps.
+
+          ## Section 1 — Open Pull Requests
+          gh pr list --state open --json number,title,author,createdAt,isDraft,reviewDecision,statusCheckRollup
+          - Compute age in days from createdAt.
+          - CI rollup: PASSING | FAILING | PENDING | NO_CI.
+          - Flag PRs older than 7 days with no review as ⚠️ STALE.
+          - Flag CI FAILING as ❌.
+          - Output a Markdown table.
+
+          ## Section 2 — CI/CD Pipeline (last 10 runs)
+          gh run list --limit 10 --json databaseId,name,event,status,conclusion,createdAt,headBranch
+          - Table: Workflow | Branch | Conclusion | Age.
+          - Flag failures on ${DEFAULT_BRANCH} as ❌ HIGH PRIORITY.
+
+          ## Section 3 — Open Issues
+          gh issue list --state open --json number,title,createdAt,assignees,labels --limit 30
+          - Total count, bug-labelled (🐛), unassigned > 30 days (👻).
+
+          ## Section 4 — Dependabot & Security Alerts
+          gh api /repos/${REPO}/dependabot/alerts --jq '[.[] | select(.state=="open")]'
+          - Group by severity: 🔴 critical | 🟠 high | 🟡 medium | 🔵 low.
+          gh api /repos/${REPO}/secret-scanning/alerts?state=open
+          - Any result is P0 🚨 — list secret type.
+
+          ## Section 5 — Stale Branches
+          gh api /repos/${REPO}/branches --paginate --jq '.[].name'
+          - Check last commit date for each branch (exclude main/master/develop/HEAD).
+          - List branches with no commits in 30+ days.
+          - Identify which are already merged into ${DEFAULT_BRANCH}.
+
+          ## Section 6 — Summary (REQUIRED — parse markers must be exact)
+          End your response with this exact block:
+
+          <!-- STATUS_SUMMARY_START -->
+          ## 📊 Health Summary
+
+          | Area | Status | Detail |
+          |---|---|---|
+          | Open PRs | ICON | N open (N stale) |
+          | CI/CD | ICON | N/10 passing |
+          | Issues | ICON | N open (N bugs) |
+          | Dependabot | ICON | N critical, N high |
+          | Secrets | ICON | N exposed |
+          | Stale branches | ICON | N branches |
+
+          **Overall health: HEALTHY**
+          (replace with NEEDS_ATTENTION or CRITICAL as appropriate)
+
+          ### 🎯 Priority Actions
+
+          | Priority | Item | Action |
+          |---|---|---|
+          (P0=🚨 secrets, P1=🔴 critical deps, P2=🟠 CI fail on default branch, P3=🟡 stale PRs, P4=🔵 cleanup)
+          <!-- STATUS_SUMMARY_END -->
+          PROMPT_EOF
+
+          # Substitute real values (the heredoc above treats $ as literal inside single quotes)
+          sed -i \
+            -e "s|\${REPO}|${REPO}|g" \
+            -e "s|\${DEFAULT_BRANCH}|${DEFAULT_BRANCH}|g" \
+            "${RUNNER_TEMP}/status-prompt.txt"
+
+          echo "Prompt written ($(wc -c < "${RUNNER_TEMP}/status-prompt.txt") bytes)"
+
+      - name: Run Claude headless status check
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          # Ensure gh can find its config in the runner environment
+          GH_CONFIG_DIR: /home/runner/.config/gh
+        run: |
+          PROMPT_FILE="${RUNNER_TEMP}/status-prompt.txt"
+          OUTPUT_FILE="${REPORT_DIR}/raw-output.json"
+          REPORT_FILE="${REPORT_DIR}/report.md"
+
+          echo "Running claude -p ..."
+
+          # --print               : headless, non-interactive
+          # --allowedTools        : read-only GH CLI + git; no file writes
+          # --output-format json  : structured output with cost_usd field
+          # --max-budget-usd      : hard spend cap
+          # --no-session-persistence : stateless; no session file written to disk
+          claude \
+            --print \
+            --allowedTools \
+              "Bash(gh pr list:*),Bash(gh pr checks:*),Bash(gh pr view:*),Bash(gh run list:*),Bash(gh run view:*),Bash(gh issue list:*),Bash(gh api:*),Bash(gh repo view:*),Bash(git log:*),Bash(git branch:*),Bash(git for-each-ref:*)" \
+            --output-format json \
+            --max-budget-usd "$MAX_BUDGET_USD" \
+            --no-session-persistence \
+            "$(cat "${PROMPT_FILE}")" \
+            > "$OUTPUT_FILE" 2>&1
+
+          CLAUDE_EXIT=$?
+
+          if [[ $CLAUDE_EXIT -ne 0 ]]; then
+            echo "::error::claude exited with code ${CLAUDE_EXIT}"
+            cat "$OUTPUT_FILE" >&2
+            exit $CLAUDE_EXIT
+          fi
+
+          # Extract result text and cost from JSON envelope
+          RESULT_TEXT=$(jq -r '.result // "ERROR: no result field in output"' "$OUTPUT_FILE")
+          COST=$(jq -r '.cost_usd // "unknown"' "$OUTPUT_FILE")
+
+          echo "API cost: \$${COST}"
+          echo "cost_usd=${COST}" >> "$GITHUB_OUTPUT"
+
+          # Write the human-readable report
+          {
+            printf '# Claude Status Report\n\n'
+            printf '**Repository:** `%s`  \n' "${{ needs.preflight.outputs.repo }}"
+            printf '**Generated:** %s UTC  \n' "$(date -u '+%Y-%m-%d %H:%M:%S')"
+            printf '**Trigger:** `%s`  \n' "${{ github.event_name }}"
+            printf '**Claude cost:** $%s  \n\n' "${COST}"
+            printf '---\n\n'
+            printf '%s\n' "$RESULT_TEXT"
+          } > "$REPORT_FILE"
+
+          echo "Report written: ${REPORT_FILE} ($(wc -l < "$REPORT_FILE") lines)"
+          echo "report_file=${REPORT_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Parse health status from report
+        id: parse
+        run: |
+          REPORT_FILE="${REPORT_DIR}/report.md"
+
+          # Extract the summary block between markers
+          SUMMARY=$(awk '/<!-- STATUS_SUMMARY_START -->/,/<!-- STATUS_SUMMARY_END -->/' "$REPORT_FILE")
+
+          # Determine overall health
+          if echo "$SUMMARY" | grep -q "Overall health: CRITICAL"; then
+            HEALTH="CRITICAL"
+            HAS_CRITICAL="true"
+          elif echo "$SUMMARY" | grep -q "Overall health: NEEDS_ATTENTION"; then
+            HEALTH="NEEDS_ATTENTION"
+            HAS_CRITICAL="false"
+          else
+            HEALTH="HEALTHY"
+            HAS_CRITICAL="false"
+          fi
+
+          echo "overall_health=${HEALTH}"   >> "$GITHUB_OUTPUT"
+          echo "has_critical=${HAS_CRITICAL}" >> "$GITHUB_OUTPUT"
+
+          # Write to step summary for the Actions UI
+          echo "## 🏥 Health Check Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          case "$HEALTH" in
+            CRITICAL)        echo "### 🔴 CRITICAL — immediate action required" >> "$GITHUB_STEP_SUMMARY" ;;
+            NEEDS_ATTENTION) echo "### 🟡 NEEDS ATTENTION" >> "$GITHUB_STEP_SUMMARY" ;;
+            HEALTHY)         echo "### ✅ HEALTHY" >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**API cost:** \$${{ steps.claude.outputs.cost_usd }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Run ID:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.preflight.outputs.run_label }}
+          path: ${{ steps.report.outputs.path }}/
+          retention-days: 30
+          if-no-files-found: error
+
+  # ── Create GitHub issue on CRITICAL health ────────────────────────────────────
+  create-issue:
+    name: Create issue (CRITICAL only)
+    needs: [preflight, health-check]
+    runs-on: ubuntu-latest
+    # Run only when:
+    #   health is CRITICAL, AND
+    #   either the schedule fired or the user explicitly requested issue creation
+    if: |
+      needs.health-check.outputs.has_critical == 'true' &&
+      (github.event_name == 'schedule' || github.event.inputs.create_issue == 'true')
+
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout (for label check)
+        uses: actions/checkout@v4
+
+      - name: Download report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.preflight.outputs.run_label }}
+          path: /tmp/status-report
+
+      - name: Ensure health-check label exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Create label if it doesn't exist yet (idempotent)
+          gh label create "health-check" \
+            --color "e4e669" \
+            --description "Automated repository health reports" \
+            2>/dev/null || true
+
+          gh label create "automated" \
+            --color "0075ca" \
+            --description "Created by an automated workflow" \
+            2>/dev/null || true
+
+      - name: Check for open duplicate issue
+        id: dedup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Avoid creating duplicate issues for the same week
+          WEEK_LABEL="$(date -u '+%Y-W%V')"
+          EXISTING=$(gh issue list \
+            --label "health-check,automated" \
+            --state open \
+            --json number,title \
+            --jq ".[] | select(.title | contains(\"${WEEK_LABEL}\")) | .number" \
+            | head -1)
+
+          if [[ -n "$EXISTING" ]]; then
+            echo "Duplicate found: issue #${EXISTING} — skipping creation."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "existing_issue=${EXISTING}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No duplicate for week ${WEEK_LABEL}."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create CRITICAL health issue
+        if: steps.dedup.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REPORT_FILE="/tmp/status-report/report.md"
+          WEEK_LABEL="$(date -u '+%Y-W%V')"
+          DATE_LABEL="$(date -u '+%Y-%m-%d')"
+
+          # Extract only the priority actions section for the issue body
+          PRIORITY_SECTION=$(awk \
+            '/### 🎯 Priority Actions/,/<!-- STATUS_SUMMARY_END -->/' \
+            "$REPORT_FILE" | grep -v 'STATUS_SUMMARY_END' || echo "See attached artifact for details.")
+
+          ISSUE_BODY=$(cat << EOF
+          ## 🔴 Automated Health Alert — ${DATE_LABEL}
+
+          The scheduled Claude Code health check detected **CRITICAL** issues in this repository.
+
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          **Week:** ${WEEK_LABEL}
+
+          ---
+
+          ${PRIORITY_SECTION}
+
+          ---
+
+          <details>
+          <summary>How to investigate</summary>
+
+          1. Download the full report from the [workflow artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+          2. Or run locally: \`~/.claude/scripts/status-check.sh ${{ github.repository }}\`
+          3. Or use the slash command in Claude Code: \`/status\`
+
+          </details>
+
+          ---
+          *Generated by [claude-status-check](${{ github.server_url }}/${{ github.repository }}/actions/workflows/claude-status-check.yml) · [Disable](${{ github.server_url }}/${{ github.repository }}/actions/workflows/claude-status-check.yml)*
+          EOF
+          )
+
+          ISSUE_URL=$(gh issue create \
+            --title "🔴 Health Alert [${WEEK_LABEL}]: CRITICAL findings — ${DATE_LABEL}" \
+            --body "$ISSUE_BODY" \
+            --label "health-check,automated" \
+          )
+
+          echo "Created issue: ${ISSUE_URL}"
+          echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"
+          echo "**Issue created:** ${ISSUE_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Slack notification ────────────────────────────────────────────────────────
+  notify-slack:
+    name: Slack notification
+    needs: [preflight, health-check]
+    runs-on: ubuntu-latest
+    # Notify on CRITICAL or NEEDS_ATTENTION, but only when the secret exists
+    if: |
+      always() &&
+      needs.health-check.result == 'success' &&
+      (needs.health-check.outputs.overall_health == 'CRITICAL' ||
+       needs.health-check.outputs.overall_health == 'NEEDS_ATTENTION')
+
+    steps:
+      - name: Post Slack summary
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          HEALTH: ${{ needs.health-check.outputs.overall_health }}
+          REPO: ${{ needs.preflight.outputs.repo }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$HEALTH" in
+            CRITICAL)        ICON="🔴" ;;
+            NEEDS_ATTENTION) ICON="🟡" ;;
+            *)               ICON="✅" ;;
+          esac
+
+          PAYLOAD=$(jq -n \
+            --arg text "${ICON} *Claude Status Check* — <${RUN_URL}|${REPO}>" \
+            --arg health "$HEALTH" \
+            --arg repo "$REPO" \
+            --arg run_url "$RUN_URL" \
+            '{
+              blocks: [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: $text
+                  }
+                },
+                {
+                  type: "section",
+                  fields: [
+                    { type: "mrkdwn", text: ("*Repository:*\n<https://github.com/" + $repo + "|" + $repo + ">") },
+                    { type: "mrkdwn", text: ("*Health:*\n" + $health) },
+                    { type: "mrkdwn", text: ("*Report:*\n<" + $run_url + "|View in Actions>") }
+                  ]
+                }
+              ]
+            }')
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          if [[ "$HTTP_STATUS" != "200" ]]; then
+            echo "::warning::Slack notification returned HTTP ${HTTP_STATUS}"
+          else
+            echo "Slack notification sent (HTTP 200)."
+          fi
+
+      - name: Skip (SLACK_WEBHOOK_URL not configured)
+        if: ${{ secrets.SLACK_WEBHOOK_URL == '' }}
+        run: |
+          echo "SLACK_WEBHOOK_URL secret not set — skipping notification."
+          echo "To enable Slack alerts, add SLACK_WEBHOOK_URL to repository secrets."

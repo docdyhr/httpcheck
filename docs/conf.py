@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "httpcheck"
-copyright = "2026, Thomas Juul Dyhr"
+copyright = "2026, Thomas Juul Dyhr"  # pylint: disable=redefined-builtin
 author = "Thomas Juul Dyhr"
 
 version = "1.4.3"

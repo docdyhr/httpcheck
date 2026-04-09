@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import requests
 
-from httpcheck.common import SiteStatus
+from httpcheck.common import VERSION, SiteStatus
 from httpcheck.site_checker import check_site
 
 
@@ -51,7 +51,7 @@ class TestSiteChecker:
             # Verify timeout was passed (with headers)
             mock_session.get.assert_called_with(
                 "https://example.com",
-                headers={"User-Agent": "httpcheck Agent 1.4.1"},
+                headers={"User-Agent": f"httpcheck Agent {VERSION}"},
                 timeout=5,
                 allow_redirects=True,
             )
@@ -193,7 +193,7 @@ class TestSiteChecker:
             # Verify allow_redirects=False was used
             mock_session.get.assert_called_with(
                 "https://example.com/old",
-                headers={"User-Agent": "httpcheck Agent 1.4.1"},
+                headers={"User-Agent": f"httpcheck Agent {VERSION}"},
                 timeout=5.0,
                 allow_redirects=False,
             )
@@ -207,7 +207,7 @@ class TestSiteChecker:
                 response = Mock()
                 response.status_code = 301
                 response.is_redirect = True
-                response.headers = {"location": f"http://example.com/page{i+1}"}
+                response.headers = {"location": f"http://example.com/page{i + 1}"}
                 response.url = f"http://example.com/page{i}"
                 responses.append(response)
 
@@ -454,7 +454,7 @@ class TestSiteChecker:
             result = check_site("https://example.com", custom_headers=custom_headers)
 
             expected_headers = {
-                "User-Agent": "httpcheck Agent 1.4.1",
+                "User-Agent": f"httpcheck Agent {VERSION}",
                 "Authorization": "Bearer token123",
                 "X-Custom-Header": "custom-value",
             }
@@ -505,7 +505,6 @@ class TestSiteChecker:
             patch("httpcheck.site_checker.requests.Session") as mock_session_class,
             patch("httpcheck.site_checker.time.sleep") as mock_sleep,
         ):
-
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.history = []
@@ -531,7 +530,6 @@ class TestSiteChecker:
             patch("httpcheck.site_checker.requests.Session") as mock_session_class,
             patch("httpcheck.site_checker.time.sleep") as mock_sleep,
         ):
-
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.history = []

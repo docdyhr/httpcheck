@@ -1,6 +1,7 @@
 """Tests for the validation module."""
 
 import os
+import sys
 import tempfile
 
 import pytest
@@ -147,6 +148,9 @@ class TestInputValidator:
         finally:
             os.unlink(temp_path)
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="File permissions work differently on Windows"
+    )
     def test_validate_file_input_permission_denied(self):
         """Test file input validation with permission denied."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:

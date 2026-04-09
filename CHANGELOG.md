@@ -5,6 +5,20 @@ All notable changes to httpcheck will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Experimental async mode via `--async` using httpx async client (mutually exclusive with `--fast`).
+- Async checker module with protocol-restricted redirects and shared connection limits.
+
+### Fixed
+- TLDManager keeps singleton semantics while allowing cache-dir overrides and sturdier cache/local/network fallback.
+- CLI site processing honors explicit async/fast flags (guards against MagicMock truthiness in tests).
+- Async performance benchmark wraps coroutine in `asyncio.run`, removing unawaited coroutine warnings.
+
+### Changed
+- Docs now advertise `--async` and Read the Docs badge; roadmap/TODO reflect v1.4.3 release and v1.5.0 async focus.
+
 ## [1.4.3] - 2026-03-09
 
 ### Fixed

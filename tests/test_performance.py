@@ -4,11 +4,13 @@ These tests benchmark critical performance paths to prevent regressions.
 Run with: pytest tests/test_performance.py --benchmark-only
 """
 
+import asyncio
 import io
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from httpcheck.async_site_checker import async_check_site
 from httpcheck.cli import check_sites_parallel, check_sites_serial
 from httpcheck.common import SiteStatus
 from httpcheck.file_handler import FileInputHandler, url_validation
@@ -183,7 +185,7 @@ class TestTLDManagerPerformance:
 
         # Benchmark validation
         result = benchmark(manager.validate_tld, "example.com")
-        assert result is None  # No exception means valid
+        assert result == "example.com"  # Valid domain should be returned
 
     def test_benchmark_tld_manager_with_local_file(self, benchmark, tmp_path):
         """Benchmark TLD manager using local file."""
@@ -294,6 +296,22 @@ class TestIntegrationPerformance:
 
         result = benchmark(complete_workflow)
         assert '"domain"' in result
+
+
+@patch("httpcheck.async_site_checker.httpx.AsyncClient.get", new_callable=AsyncMock)
+def test_async_single_site_check_performance(
+    mock_get, mock_successful_response, benchmark
+):
+    """Async single site check should be comparable to sync baseline without warnings."""
+
+    mock_get.return_value = mock_successful_response
+
+    def run_once():
+        return asyncio.run(async_check_site("https://example.com"))
+
+    result = benchmark(run_once)
+    assert isinstance(result, SiteStatus)
+    assert result.status == "200"
 
 
 # Performance thresholds (for CI failure detection)
