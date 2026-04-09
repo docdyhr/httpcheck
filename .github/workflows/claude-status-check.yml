@@ -343,9 +343,7 @@ jobs:
     # Run only when:
     #   health is CRITICAL, AND
     #   either the schedule fired or the user explicitly requested issue creation
-    if: |
-      needs.health-check.outputs.has_critical == 'true' &&
-      (github.event_name == 'schedule' || github.event.inputs.create_issue == 'true')
+    if: needs.health-check.outputs.has_critical == 'true' && (github.event_name == 'schedule' || github.event.inputs.create_issue == 'true')
 
     permissions:
       issues: write
@@ -457,11 +455,7 @@ jobs:
     needs: [preflight, health-check]
     runs-on: ubuntu-latest
     # Notify on CRITICAL or NEEDS_ATTENTION, but only when the secret exists
-    if: |
-      always() &&
-      needs.health-check.result == 'success' &&
-      (needs.health-check.outputs.overall_health == 'CRITICAL' ||
-       needs.health-check.outputs.overall_health == 'NEEDS_ATTENTION')
+    if: always() && needs.health-check.result == 'success' && (needs.health-check.outputs.overall_health == 'CRITICAL' || needs.health-check.outputs.overall_health == 'NEEDS_ATTENTION')
 
     steps:
       - name: Post Slack summary

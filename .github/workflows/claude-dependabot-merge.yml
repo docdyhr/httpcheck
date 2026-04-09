@@ -562,10 +562,7 @@ jobs:
     needs: [safety-gate, discover, evaluate-and-merge]
     runs-on: ubuntu-latest
     # Run even if evaluate-and-merge failed, so we always hear about problems
-    if: |
-      always() &&
-      needs.discover.outputs.has_prs == 'true' &&
-      needs.evaluate-and-merge.result != 'skipped'
+    if: always() && needs.discover.outputs.has_prs == 'true' && needs.evaluate-and-merge.result != 'skipped'
 
     steps:
       - name: Post Slack summary
