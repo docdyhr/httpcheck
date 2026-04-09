@@ -163,7 +163,7 @@ class TestInputValidator:
             with pytest.raises(FileValidationError, match="File is not readable"):
                 self.validator.validate_file_input(temp_path)
         finally:
-            os.chmod(temp_path, 0o644)  # Restore permissions
+            os.chmod(temp_path, 0o600)  # Restore permissions (owner read/write only)
             os.unlink(temp_path)
 
     def test_validate_file_input_strict_mode(self):

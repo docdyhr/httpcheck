@@ -32,6 +32,10 @@ on:
     # Every Monday at 07:00 UTC
     - cron: "0 7 * * 1"
 
+  push:
+    paths:
+      - ".github/workflows/claude-status-check.yml"
+
   workflow_dispatch:
     inputs:
       create_issue:

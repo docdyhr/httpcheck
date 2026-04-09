@@ -1,0 +1,8 @@
+name: "CodeQL configuration"
+
+# Suppress false positives from security-extended suite.
+# py/incomplete-url-substring-sanitization: only fires on test assertions
+# (e.g. `assert "example.com" in result`) which are not security checks.
+query-filters:
+  - exclude:
+      id: py/incomplete-url-substring-sanitization
