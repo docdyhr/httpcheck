@@ -48,10 +48,6 @@ on:
     # status report reflects a world where Dependabot PRs are already handled.
     - cron: "0 6 * * 0"
 
-  push:
-    paths:
-      - ".github/workflows/claude-dependabot-merge.yml"
-
   workflow_dispatch:
     inputs:
       merge_mode:
