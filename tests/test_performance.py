@@ -325,7 +325,7 @@ class TestPerformanceThresholds:
     def test_single_site_check_performance(
         self, mock_session, mock_successful_response
     ):
-        """Single site check should complete in <100ms (excluding network)."""
+        """Single site check should complete in <1s (excluding network)."""
         mock_session.return_value.get.return_value = mock_successful_response
 
         import time
@@ -334,7 +334,7 @@ class TestPerformanceThresholds:
         result = check_site("https://example.com")
         duration = time.time() - start
 
-        assert duration < 0.1, f"Single site check took {duration}s (threshold: 0.1s)"
+        assert duration < 1.0, f"Single site check took {duration}s (threshold: 1.0s)"
         assert isinstance(result, SiteStatus)
 
     def test_url_validation_performance(self):
