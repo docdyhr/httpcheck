@@ -66,23 +66,24 @@
 
 ## 🚀 v1.5.0 DEVELOPMENT (Next 3 Months)
 
-### Phase 1: Async I/O Implementation (Month 1)
+### ✅ Phase 1: Async I/O Implementation (COMPLETED)
 
 **Goal**: 2-3x performance improvement for concurrent checks
 
-- [ ] **Research & Design**
-  - [ ] Evaluate aiohttp vs httpx for async HTTP
-  - [ ] Design backward-compatible async interface
-  - [ ] Plan migration strategy for existing threaded code
+- [x] **Research & Design**
+  - [x] Evaluate aiohttp vs httpx for async HTTP (chose httpx)
+  - [x] Design backward-compatible async interface
+  - [x] Plan migration strategy for existing threaded code
 
-- [ ] **Core Implementation**
-  - [ ] Create `async_site_checker.py` module
-  - [ ] Implement async version of check_site()
-  - [ ] Add connection pooling and keep-alive
-  - [ ] Maintain synchronous wrapper for compatibility
+- [x] **Core Implementation**
+  - [x] Create `async_site_checker.py` module
+  - [x] Implement async version of check_site()
+  - [x] Add connection pooling and keep-alive
+  - [x] Maintain synchronous wrapper for compatibility
 
-- [ ] **Testing & Benchmarking**
-  - [ ] Add async-specific test suite
+- [x] **Testing**
+  - [x] Add async-specific test suite (`test_async_site_checker.py`)
+- [ ] **Benchmarking**
   - [ ] Benchmark against v1.4.0 (target: 2-3x improvement)
   - [ ] Test with 1000+ concurrent checks
   - [ ] Memory usage profiling
@@ -237,18 +238,21 @@
 
 ## 📋 DEVELOPMENT NOTES
 
-### Current Architecture (v1.4.0)
+### Current Architecture (v1.4.3)
 
 ``` diagram
 httpcheck/
-├── __init__.py           # Package API
-├── common.py             # Shared utilities
-├── tld_manager.py        # TLD validation (Singleton)
-├── file_handler.py       # File input processing
-├── site_checker.py       # HTTP checking logic
-├── output_formatter.py   # Multiple output formats
-├── notification.py       # System notifications
-└── validation.py         # Security validation
+├── __init__.py             # Package API
+├── cli.py                  # Argument parser and entry point
+├── common.py               # Shared utilities
+├── tld_manager.py          # TLD validation (Singleton)
+├── file_handler.py         # File input processing
+├── site_checker.py         # HTTP checking logic (threaded)
+├── async_site_checker.py   # Async I/O checks (httpx)
+├── output_formatter.py     # Multiple output formats
+├── notification.py         # System notifications
+├── logger.py               # Centralized logging
+└── validation.py           # Security validation
 ```
 
 ### Design Principles
