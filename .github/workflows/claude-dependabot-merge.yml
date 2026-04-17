@@ -295,7 +295,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -553,7 +553,7 @@ jobs:
           echo "$AUDIT_BLOCK" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload audit artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.safety-gate.outputs.run_label }}
           path: ${{ steps.prep.outputs.audit_path }}/
