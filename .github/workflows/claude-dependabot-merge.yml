@@ -570,7 +570,6 @@ jobs:
 
     steps:
       - name: Post Slack summary
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MERGE_MODE: ${{ needs.safety-gate.outputs.merge_mode }}
@@ -582,6 +581,12 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPO: ${{ github.repository }}
         run: |
+          if [[ -z "$SLACK_WEBHOOK_URL" ]]; then
+            echo "SLACK_WEBHOOK_URL not set — skipping notification."
+            echo "To enable Slack alerts, add SLACK_WEBHOOK_URL to repository secrets."
+            exit 0
+          fi
+
           case "$JOB_RESULT" in
             success) ICON="✅" ;;
             failure) ICON="❌" ;;
@@ -628,9 +633,3 @@ jobs:
           else
             echo "Slack notification sent."
           fi
-
-      - name: Skip (SLACK_WEBHOOK_URL not configured)
-        if: ${{ secrets.SLACK_WEBHOOK_URL == '' }}
-        run: |
-          echo "SLACK_WEBHOOK_URL not set — skipping notification."
-          echo "To enable Slack alerts, add SLACK_WEBHOOK_URL to repository secrets."
