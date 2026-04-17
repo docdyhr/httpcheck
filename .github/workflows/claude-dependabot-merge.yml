@@ -491,7 +491,7 @@ jobs:
             printf '**Generated:** %s UTC\n' "$(date -u '+%Y-%m-%d %H:%M:%S')"
             printf '**Trigger:** `%s` (run #%s)\n' "${{ github.event_name }}" "${{ github.run_number }}"
             printf '**Claude cost:** $%s\n\n' "${COST}"
-            printf '---\n\n'
+            printf '%s\n\n' '---'
             printf '%s\n' "$RESULT_TEXT"
           } > "$TRANSCRIPT_FILE"
 

@@ -287,7 +287,7 @@ jobs:
             printf '**Generated:** %s UTC  \n' "$(date -u '+%Y-%m-%d %H:%M:%S')"
             printf '**Trigger:** `%s`  \n' "${{ github.event_name }}"
             printf '**Claude cost:** $%s  \n\n' "${COST}"
-            printf '---\n\n'
+            printf '%s\n\n' '---'
             printf '%s\n' "$RESULT_TEXT"
           } > "$REPORT_FILE"
 
