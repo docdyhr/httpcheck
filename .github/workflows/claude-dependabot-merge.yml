@@ -108,6 +108,8 @@ jobs:
   safety-gate:
     name: Safety gate
     runs-on: ubuntu-latest
+    # Dependabot PRs can't access regular secrets — skip gracefully
+    if: github.actor != 'dependabot[bot]'
     outputs:
       is_live: ${{ steps.resolve.outputs.is_live }}
       merge_mode: ${{ steps.resolve.outputs.merge_mode }}
@@ -295,7 +297,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -553,7 +555,7 @@ jobs:
           echo "$AUDIT_BLOCK" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload audit artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.safety-gate.outputs.run_label }}
           path: ${{ steps.prep.outputs.audit_path }}/

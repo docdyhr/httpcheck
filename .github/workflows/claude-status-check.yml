@@ -79,6 +79,8 @@ jobs:
   preflight:
     name: Pre-flight checks
     runs-on: ubuntu-latest
+    # Dependabot PRs can't access regular secrets — skip gracefully
+    if: github.actor != 'dependabot[bot]'
     outputs:
       repo: ${{ steps.repo.outputs.repo }}
       owner: ${{ steps.repo.outputs.owner }}
@@ -136,7 +138,7 @@ jobs:
           fetch-depth: 0 # full history for branch staleness checks
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -332,7 +334,7 @@ jobs:
           echo "**Run ID:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload report as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.preflight.outputs.run_label }}
           path: ${{ steps.report.outputs.path }}/
@@ -358,7 +360,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download report artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.preflight.outputs.run_label }}
           path: /tmp/status-report
