@@ -96,6 +96,7 @@ jobs:
           pytest
 
       - name: Run pip-audit
+        shell: bash
         run: |
           pip show httpcheck | grep "^Requires:" | sed 's/Requires: //' \
             | tr ',' '\n' | sed 's/ //g' | grep -v '^$' | pip-audit -r /dev/stdin
