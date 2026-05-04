@@ -22,13 +22,13 @@ from httpcheck.cli import (
     _add_request_customization_arguments,
     _add_tld_arguments,
     _create_argument_parser,
-    _handle_stdin_input,
     _print_verbose_header,
     _process_file_input,
     _process_sites,
     _process_stdin_input,
     _send_completion_notification,
     _validate_sites,
+    check_sites_async,
     check_sites_parallel,
     check_sites_serial,
     check_tlds,
@@ -869,34 +869,10 @@ class TestHelperFunctions:
 
         _print_verbose_header()
 
-        # Check that logger.info was called with httpcheck and a date
         assert mock_logger_instance.info.called
         call_args = mock_logger_instance.info.call_args[0]
         assert "httpcheck" in call_args[0]
-        assert "%" in call_args[0]  # Format string check
-
-    @patch("sys.stdin")
-    def test_handle_stdin_input_with_stdin(self, mock_stdin):
-        """Test handling stdin input."""
-        mock_stdin.isatty.return_value = False
-        mock_stdin.__iter__.return_value = ["example.com\n", "google.com\n"]
-
-        options = MagicMock()
-        options.site = []
-
-        _handle_stdin_input(options)
-        assert options.site == ["example.com", "google.com"]
-
-    @patch("sys.stdin")
-    def test_handle_stdin_input_no_stdin(self, mock_stdin):
-        """Test handling when no stdin and no sites."""
-        mock_stdin.isatty.return_value = True
-
-        options = MagicMock()
-        options.site = []
-
-        with pytest.raises(SystemExit):
-            _handle_stdin_input(options)
+        assert "%" in call_args[0]
 
     @patch("httpcheck.cli.check_sites_serial")
     def test_process_sites_serial(self, mock_serial):
@@ -1059,3 +1035,247 @@ class TestGetArguments:
 
         options = get_arguments()
         assert len(options.site) >= 1
+
+
+class TestCheckSitesAsync:
+    """Test async site checking functionality."""
+
+    @patch("httpcheck.cli.asyncio.run")
+    @patch("httpcheck.cli.parse_custom_headers")
+    def test_check_sites_async_success(self, mock_headers, mock_run, capsys):
+        """Test async checking with success."""
+        mock_headers.return_value = {}
+        statuses = [
+            SiteStatus(
+                domain="example.com",
+                status="200",
+                message="OK",
+                redirect_chain=[],
+                response_time=0.5,
+                redirect_timing=[],
+            )
+        ]
+        mock_run.return_value = statuses
+
+        options = MagicMock()
+        options.site = ["http://example.com"]
+        options.timeout = 5.0
+        options.retries = 2
+        options.follow_redirects = "always"
+        options.max_redirects = 30
+        options.headers = None
+        options.verify_ssl = True
+        options.retry_delay = 1.0
+        options.workers = 10
+        options.quiet = False
+        options.verbose = False
+        options.code = False
+        options.show_redirect_timing = False
+        options.output_format = "table"
+
+        successful, failures = check_sites_async(options, 0, 0, [])
+        assert successful == 1
+        assert failures == 0
+
+    @patch("httpcheck.cli.asyncio.run")
+    @patch("httpcheck.cli.parse_custom_headers")
+    def test_check_sites_async_json_output(self, mock_headers, mock_run):
+        """Test async checking with JSON output."""
+        mock_headers.return_value = {}
+        statuses = [
+            SiteStatus(
+                domain="example.com",
+                status="200",
+                message="OK",
+                redirect_chain=[],
+                response_time=0.5,
+                redirect_timing=[],
+            )
+        ]
+        mock_run.return_value = statuses
+
+        options = MagicMock()
+        options.site = ["http://example.com"]
+        options.timeout = 5.0
+        options.retries = 2
+        options.follow_redirects = "always"
+        options.max_redirects = 30
+        options.headers = None
+        options.verify_ssl = True
+        options.retry_delay = 1.0
+        options.workers = 10
+        options.quiet = False
+        options.verbose = False
+        options.output_format = "json"
+
+        successful, failures = check_sites_async(options, 0, 0, [])
+        assert successful == 1
+        assert failures == 0
+
+    @patch("httpcheck.cli.asyncio.run")
+    @patch("httpcheck.cli.parse_custom_headers")
+    @patch("httpcheck.cli.get_logger")
+    def test_check_sites_async_exception(self, mock_logger, mock_headers, mock_run):
+        """Test async checking when asyncio.run raises an exception."""
+        mock_logger_instance = MagicMock()
+        mock_logger.return_value = mock_logger_instance
+        mock_headers.return_value = {}
+        mock_run.side_effect = RuntimeError("event loop error")
+
+        options = MagicMock()
+        options.site = ["http://example.com", "http://google.com"]
+        options.headers = None
+
+        successful, failures = check_sites_async(options, 0, 0, [])
+        assert failures == 2  # all sites counted as failed
+        mock_logger_instance.error.assert_called_once()
+        # Exception type should appear in the error message
+        call_args = mock_logger_instance.error.call_args[0]
+        assert "RuntimeError" in call_args[1]
+
+
+class TestCheckTLDsExtended:
+    """Extended TLD checking tests."""
+
+    @patch("httpcheck.cli.TLDManager")
+    def test_check_tlds_with_invalid_tld_exception(self, mock_tld_manager):
+        """Test TLD check when a site has an invalid TLD."""
+        from httpcheck.common import InvalidTLDException
+
+        mock_instance = MagicMock()
+        mock_instance.validate_tld.side_effect = InvalidTLDException("Invalid TLD")
+        mock_tld_manager.return_value = mock_instance
+
+        options = MagicMock()
+        options.disable_tld = False
+        options.tld = True
+        options.update_tld = False
+        options.tld_cache_days = 30
+        options.verbose = False
+        options.tld_warning_only = False
+        options.site = ["http://example.invalid"]
+
+        failed_sites = []
+        failures = check_tlds(options, 0, failed_sites)
+        assert failures == 1
+        assert len(failed_sites) == 1
+        assert "Invalid TLD" in failed_sites[0]
+
+    @patch("httpcheck.cli.TLDManager")
+    def test_check_tlds_general_exception_suppressed(self, mock_tld_manager):
+        """Test that a general exception in TLD manager init is caught."""
+        mock_tld_manager.side_effect = Exception("Network error")
+
+        options = MagicMock()
+        options.disable_tld = False
+        options.tld = True
+        options.update_tld = False
+        options.tld_cache_days = 30
+        options.verbose = False
+        options.tld_warning_only = False
+        options.site = ["http://example.com"]
+
+        # Should not raise; failures unchanged
+        failures = check_tlds(options, 0, [])
+        assert failures == 0
+
+    @patch("httpcheck.cli.TLDManager")
+    def test_check_tlds_mixed_valid_invalid(self, mock_tld_manager):
+        """Test TLD check with mix of valid and invalid sites."""
+        from httpcheck.common import InvalidTLDException
+
+        mock_instance = MagicMock()
+
+        def validate_side_effect(site):
+            if "invalid" in site:
+                raise InvalidTLDException("bad TLD")
+            return "com"
+
+        mock_instance.validate_tld.side_effect = validate_side_effect
+        mock_tld_manager.return_value = mock_instance
+
+        options = MagicMock()
+        options.disable_tld = False
+        options.tld = True
+        options.update_tld = False
+        options.tld_cache_days = 30
+        options.verbose = False
+        options.tld_warning_only = False
+        options.site = ["http://example.com", "http://bad.invalid"]
+
+        failed_sites = []
+        failures = check_tlds(options, 0, failed_sites)
+        assert failures == 1
+        assert len(failed_sites) == 1
+
+
+class TestPrintSiteResults:
+    """Test the _print_site_results helper."""
+
+    def test_print_table_format(self, capsys):
+        """Test table format output."""
+        from httpcheck.cli import _print_site_results
+
+        statuses = [SiteStatus(domain="example.com", status="200", message="OK")]
+        results = ["example.com 200"]
+        options = MagicMock()
+        options.output_format = "table"
+        options.verbose = False
+
+        _print_site_results(statuses, results, options)
+        captured = capsys.readouterr()
+        assert "example.com 200" in captured.out
+
+    def test_print_json_format(self, capsys):
+        """Test JSON format output."""
+        from httpcheck.cli import _print_site_results
+
+        statuses = [SiteStatus(domain="example.com", status="200", message="OK")]
+        options = MagicMock()
+        options.output_format = "json"
+        options.verbose = False
+
+        _print_site_results(statuses, [], options)
+        captured = capsys.readouterr()
+        assert '"domain"' in captured.out
+        assert '"example.com"' in captured.out
+
+    def test_print_csv_format(self, capsys):
+        """Test CSV format output."""
+        from httpcheck.cli import _print_site_results
+
+        statuses = [SiteStatus(domain="example.com", status="200", message="OK")]
+        options = MagicMock()
+        options.output_format = "csv"
+        options.verbose = False
+
+        _print_site_results(statuses, [], options)
+        captured = capsys.readouterr()
+        assert "domain" in captured.out
+        assert "example.com" in captured.out
+
+    def test_exception_message_includes_type(self, capsys):
+        """Test that serial exception messages include the exception type."""
+        from unittest.mock import patch as upatch
+
+        options = MagicMock()
+        options.site = ["http://example.com"]
+        options.timeout = 5.0
+        options.retries = 0
+        options.follow_redirects = "always"
+        options.max_redirects = 30
+        options.headers = None
+        options.verify_ssl = True
+        options.retry_delay = 0.0
+        options.quiet = False
+        options.output_format = "table"
+
+        with upatch("httpcheck.cli.check_site") as mock_check:
+            with upatch("httpcheck.cli.parse_custom_headers") as mock_headers:
+                mock_headers.return_value = {}
+                mock_check.side_effect = ValueError("bad value")
+                failed_sites = []
+                check_sites_serial(options, 0, 0, failed_sites)
+
+        captured = capsys.readouterr()
+        assert "ValueError" in captured.out

@@ -7,7 +7,12 @@ import pytest
 import requests
 
 from httpcheck.common import VERSION, SiteStatus
-from httpcheck.site_checker import check_site
+from httpcheck.site_checker import (
+    _create_custom_headers,
+    _handle_request_exception,
+    _should_stop_redirect,
+    check_site,
+)
 
 
 class TestSiteChecker:
@@ -573,3 +578,110 @@ class TestSiteChecker:
                 allow_redirects=True,
             )
             assert result.status == "200"
+
+
+class TestSiteCheckerHelpers:
+    """Tests for site_checker helper functions."""
+
+    def test_create_custom_headers_default_user_agent(self):
+        """Default User-Agent is always present."""
+        headers = _create_custom_headers()
+        assert "User-Agent" in headers
+        assert "httpcheck" in headers["User-Agent"]
+
+    def test_create_custom_headers_merged(self):
+        """Custom headers are merged with the default User-Agent."""
+        headers = _create_custom_headers({"X-Custom": "test"})
+        assert "User-Agent" in headers
+        assert headers["X-Custom"] == "test"
+
+    def test_should_stop_redirect_http_only_stops_https(self):
+        """http-only stops at HTTPS redirect URLs."""
+        assert _should_stop_redirect("http-only", "https://example.com") is True
+
+    def test_should_stop_redirect_http_only_allows_http(self):
+        """http-only allows HTTP redirect URLs."""
+        assert _should_stop_redirect("http-only", "http://example.com") is False
+
+    def test_should_stop_redirect_https_only_stops_http(self):
+        """https-only stops at HTTP redirect URLs."""
+        assert _should_stop_redirect("https-only", "http://example.com") is True
+
+    def test_should_stop_redirect_https_only_allows_https(self):
+        """https-only allows HTTPS redirect URLs."""
+        assert _should_stop_redirect("https-only", "https://example.com") is False
+
+    def test_should_stop_redirect_always_never_stops(self):
+        """always policy never stops a redirect."""
+        assert _should_stop_redirect("always", "https://example.com") is False
+        assert _should_stop_redirect("always", "http://example.com") is False
+
+    def test_handle_request_exception_timeout_on_last_attempt(self):
+        """Returns SiteStatus with [timeout] for Timeout on the last attempt."""
+        exc = requests.Timeout("timed out")
+        result = _handle_request_exception(
+            exc,
+            attempt=0,
+            retries=0,
+            retry_delay=0,
+            site="https://example.com",
+            verify_ssl=True,
+        )
+        assert result is not None
+        assert result.status == "[timeout]"
+
+    def test_handle_request_exception_connection_error_on_last_attempt(self):
+        """Returns SiteStatus with [connection error] for ConnectionError."""
+        exc = requests.ConnectionError("refused")
+        result = _handle_request_exception(
+            exc,
+            attempt=2,
+            retries=2,
+            retry_delay=0,
+            site="https://example.com",
+            verify_ssl=True,
+        )
+        assert result is not None
+        assert result.status == "[connection error]"
+
+    def test_handle_request_exception_http_error_without_response(self):
+        """HTTPError with no response attribute falls back gracefully."""
+        exc = requests.HTTPError("bad")
+        exc.response = None  # no response object
+        result = _handle_request_exception(
+            exc,
+            attempt=0,
+            retries=0,
+            retry_delay=0,
+            site="https://example.com",
+            verify_ssl=True,
+        )
+        assert result is not None
+        assert result.status == "None"
+
+    def test_handle_request_exception_not_last_attempt_returns_none(self):
+        """Before the last attempt, returns None to signal retry."""
+        exc = requests.ConnectionError("refused")
+        result = _handle_request_exception(
+            exc,
+            attempt=0,
+            retries=2,
+            retry_delay=0,
+            site="https://example.com",
+            verify_ssl=True,
+        )
+        assert result is None
+
+    def test_handle_request_exception_ssl_request_exception(self):
+        """RequestException with SSL in message includes ssl context in error."""
+        exc = requests.RequestException("SSL certificate error")
+        result = _handle_request_exception(
+            exc,
+            attempt=0,
+            retries=0,
+            retry_delay=0,
+            site="https://example.com",
+            verify_ssl=False,
+        )
+        assert result is not None
+        assert "SSL verification disabled" in result.message

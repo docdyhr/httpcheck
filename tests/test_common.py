@@ -130,9 +130,9 @@ class TestSiteStatus:
         assert status.domain == "example.com"
         assert status.status == "200"
         assert status.message == "OK"
-        assert status.redirect_chain == []
+        assert status.redirect_chain is None
         assert status.response_time == 0.0
-        assert status.redirect_timing == []
+        assert status.redirect_timing is None
 
 
 class TestInvalidTLDException:

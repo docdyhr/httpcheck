@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Iterable
-from datetime import datetime
-from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 
 import httpx
@@ -23,14 +22,14 @@ def _create_headers(custom_headers: dict | None = None) -> dict:
     return headers
 
 
-def _extract_domain(url_like: object, fallback: str) -> str:
-    """Return host component from httpx.URL/str-like values."""
+def _extract_domain(url_like: str | httpx.URL, fallback: str) -> str:
+    """Return host component from httpx.URL or string URL."""
     try:
-        if hasattr(url_like, "host"):
-            return str(getattr(url_like, "host"))
+        if isinstance(url_like, httpx.URL):
+            return str(url_like.host)
         parsed = urlparse(str(url_like))
         return parsed.hostname or fallback
-    except Exception:
+    except (AttributeError, ValueError):
         return fallback
 
 
@@ -70,16 +69,16 @@ async def _manual_redirect_flow(
     timing: list[tuple[str, int, float]] = []
 
     current_url: httpx.URL = httpx.URL(url)
-    total_start = datetime.now()
+    total_start = time.monotonic()
     redirects = 0
     while True:
-        hop_start = datetime.now()
+        hop_start = time.monotonic()
         response = await client.get(
             str(current_url),
             follow_redirects=False,
             timeout=timeout,
         )
-        hop_elapsed = (datetime.now() - hop_start).total_seconds()
+        hop_elapsed = time.monotonic() - hop_start
 
         chain.append((str(response.url), response.status_code))
         timing.append((str(response.url), response.status_code, hop_elapsed))
@@ -103,7 +102,7 @@ async def _manual_redirect_flow(
         redirects += 1
         current_url = next_url
 
-    total_elapsed = (datetime.now() - total_start).total_seconds()
+    total_elapsed = time.monotonic() - total_start
     return response, total_elapsed, chain, timing
 
 
@@ -127,7 +126,7 @@ async def async_check_site(
     async def _execute_request(
         active_client: httpx.AsyncClient,
     ) -> tuple[httpx.Response, float]:
-        start = datetime.now()
+        start = time.monotonic()
         response = await active_client.get(
             site,
             headers=headers,
@@ -135,7 +134,7 @@ async def async_check_site(
             follow_redirects=allow_redirects,
             max_redirects=max_redirects,
         )
-        elapsed = (datetime.now() - start).total_seconds()
+        elapsed = time.monotonic() - start
         return response, elapsed
 
     owns_client = client is None
@@ -180,10 +179,11 @@ async def async_check_site(
                         else "[connection error]"
                     )
                     domain = site
-                    if hasattr(exc, "request") and getattr(exc, "request") is not None:
-                        domain = _extract_domain(
-                            getattr(exc.request, "url", site), site
-                        )
+                    try:
+                        req = exc.request  # type: ignore[attr-defined]
+                        domain = _extract_domain(getattr(req, "url", site), site)
+                    except (AttributeError, RuntimeError):
+                        pass
                     return SiteStatus(domain, status, str(exc))
                 if retry_delay > 0:
                     await asyncio.sleep(retry_delay)

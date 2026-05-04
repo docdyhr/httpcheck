@@ -96,8 +96,9 @@ class TLDManager:
             # Local file existed but was empty/invalid; attempt network update
             try:
                 self._update_tld_list()
-            except Exception:
-                pass
+            except Exception as e:
+                if self.verbose:
+                    print(f"[-] Could not update TLD list after local file load: {e}")
 
     def _load_from_cache(self):
         """Load TLD data from the cache file if it exists and is not expired."""

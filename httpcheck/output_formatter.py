@@ -3,7 +3,6 @@
 import csv
 import io
 import json
-from typing import List
 
 from tabulate import tabulate
 

@@ -11,15 +11,17 @@ from requests.exceptions import HTTPError, RequestException, Timeout
 from .common import STATUS_CODES, VERSION, SiteStatus
 
 
-def _create_custom_headers(custom_headers=None):
+def _create_custom_headers(custom_headers: dict | None = None) -> dict:
     """Create custom headers with User-Agent."""
-    custom_header = {"User-Agent": f"httpcheck Agent {VERSION}"}
+    custom_header: dict = {"User-Agent": f"httpcheck Agent {VERSION}"}
     if custom_headers:
         custom_header.update(custom_headers)
     return custom_header
 
 
-def _configure_session(follow_redirects, max_redirects, verify_ssl):
+def _configure_session(
+    follow_redirects: str, max_redirects: int, verify_ssl: bool
+) -> tuple[requests.Session, bool]:
     """Configure requests session with redirect and SSL settings."""
     session = requests.Session()
     session.max_redirects = max_redirects
@@ -30,7 +32,12 @@ def _configure_session(follow_redirects, max_redirects, verify_ssl):
 
 
 def _create_protocol_restricted_session(
-    session, follow_redirects, *, max_redirects, redirect_chain, redirect_timing
+    session: requests.Session,
+    follow_redirects: str,
+    *,
+    max_redirects: int,
+    redirect_chain: list,
+    redirect_timing: list,
 ):
     """Create a session with protocol-restricted redirect handling."""
     original_get = session.get
@@ -67,7 +74,7 @@ def _create_protocol_restricted_session(
     return modified_get
 
 
-def _should_stop_redirect(follow_redirects, redirect_url):
+def _should_stop_redirect(follow_redirects: str, redirect_url: str) -> bool:
     """Check if redirect should be stopped based on protocol restrictions."""
     if follow_redirects == "http-only" and redirect_url.startswith("https://"):
         return True
@@ -77,8 +84,12 @@ def _should_stop_redirect(follow_redirects, redirect_url):
 
 
 def _track_redirect_chain(
-    response, allow_redirects, initial_time, redirect_chain, redirect_timing
-):
+    response,
+    allow_redirects: bool,
+    initial_time: float,
+    redirect_chain: list,
+    redirect_timing: list,
+) -> None:
     """Track redirect chain and timing for standard redirects."""
     if allow_redirects and response.history:
         prev_time = initial_time
@@ -95,31 +106,43 @@ def _track_redirect_chain(
         redirect_timing.append((response.url, response.status_code, initial_time))
 
 
-def _handle_request_exception(e, attempt, retries, *, retry_delay, site, verify_ssl):
+def _handle_request_exception(
+    e: Exception,
+    attempt: int,
+    retries: int,
+    *,
+    retry_delay: float,
+    site: str,
+    verify_ssl: bool,
+) -> SiteStatus | None:
     """Handle request exceptions with retry logic."""
     if attempt == retries:
+        hostname = urlparse(site).hostname
         if isinstance(e, Timeout):
-            return SiteStatus(urlparse(site).hostname, "[timeout]", "Request timed out")
-        elif isinstance(e, RequestsConnectionError):
-            return SiteStatus(
-                urlparse(site).hostname, "[connection error]", "Connection failed"
-            )
-        elif isinstance(e, HTTPError):
-            return SiteStatus(
-                urlparse(site).hostname, str(e.response.status_code), str(e)
-            )
-        elif isinstance(e, RequestException):
+            return SiteStatus(hostname, "[timeout]", "Request timed out")
+        if isinstance(e, RequestsConnectionError):
+            return SiteStatus(hostname, "[connection error]", "Connection failed")
+        if isinstance(e, HTTPError):
+            status_code = getattr(e.response, "status_code", None)
+            return SiteStatus(hostname, str(status_code), str(e))
+        if isinstance(e, RequestException):
             error_msg = "Request failed"
             if not verify_ssl and "SSL" in str(e):
                 error_msg = "SSL verification disabled - " + str(e)
-            return SiteStatus(urlparse(site).hostname, "[request error]", error_msg)
+            return SiteStatus(hostname, "[request error]", error_msg)
 
     if retry_delay > 0 and attempt < retries:
         time.sleep(retry_delay)
     return None
 
 
-def _perform_request(session, site, custom_header, timeout, allow_redirects):
+def _perform_request(
+    session: requests.Session,
+    site: str,
+    custom_header: dict,
+    timeout: float,
+    allow_redirects: bool,
+) -> tuple:
     """Perform the HTTP request and return the response."""
     hop_start_time = datetime.now()
     response = session.get(
@@ -132,10 +155,12 @@ def _perform_request(session, site, custom_header, timeout, allow_redirects):
     return response, initial_time
 
 
-def _handle_redirects(response, allow_redirects, initial_time):
+def _handle_redirects(
+    response, allow_redirects: bool, initial_time: float
+) -> tuple[list, list]:
     """Track redirects and return the redirect chain and timing."""
-    redirect_chain = []
-    redirect_timing = []
+    redirect_chain: list = []
+    redirect_timing: list = []
     _track_redirect_chain(
         response,
         allow_redirects,
@@ -147,16 +172,16 @@ def _handle_redirects(response, allow_redirects, initial_time):
 
 
 def check_site(
-    site,
-    timeout=5.0,
-    retries=2,
+    site: str,
+    timeout: float = 5.0,
+    retries: int = 2,
     *,
-    follow_redirects="always",
-    max_redirects=30,
-    custom_headers=None,
-    verify_ssl=True,
-    retry_delay=1.0,
-):
+    follow_redirects: str = "always",
+    max_redirects: int = 30,
+    custom_headers: dict | None = None,
+    verify_ssl: bool = True,
+    retry_delay: float = 1.0,
+) -> SiteStatus:
     """Check website status code with redirect tracking."""
     custom_header = _create_custom_headers(custom_headers)
     session, allow_redirects = _configure_session(
@@ -168,8 +193,8 @@ def check_site(
             start_time = datetime.now()
 
             if follow_redirects in ("http-only", "https-only"):
-                redirect_chain = []
-                redirect_timing = []
+                redirect_chain: list = []
+                redirect_timing: list = []
                 session.get = _create_protocol_restricted_session(
                     session,
                     follow_redirects,

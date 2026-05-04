@@ -82,11 +82,9 @@ class SiteStatus(NamedTuple):
     domain: str
     status: str
     message: str
-    redirect_chain: list[tuple] = []
+    redirect_chain: list[tuple] | None = None
     response_time: float = 0.0
-    redirect_timing: list[tuple] = (
-        []
-    )  # List of (url, status_code, response_time) tuples
+    redirect_timing: list[tuple] | None = None
 
     @property
     def final_url(self) -> str:

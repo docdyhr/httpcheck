@@ -383,6 +383,20 @@ def process_site_status(site_status, site_url, successful, failures, failed_site
     return successful, failures
 
 
+def _print_site_results(
+    site_statuses: list[SiteStatus],
+    results: list[str],
+    options,
+) -> None:
+    """Print site check results in the requested output format."""
+    if options.output_format == "json":
+        print(format_json_list(site_statuses, options.verbose))
+    elif options.output_format == "csv":
+        print(format_csv_list(site_statuses, options.verbose))
+    else:
+        print("\n".join(filter(None, results)))
+
+
 def check_sites_serial(options, successful, failures, failed_sites):
     """Check sites one at a time."""
     results = []
@@ -409,7 +423,6 @@ def check_sites_serial(options, successful, failures, failed_sites):
                 )
                 site_statuses.append(status)
 
-                # Only format for table output
                 if options.output_format == "table":
                     formatted_output = print_format(
                         status,
@@ -425,19 +438,13 @@ def check_sites_serial(options, successful, failures, failed_sites):
                     status, site, successful, failures, failed_sites
                 )
             except Exception as e:
-                error_msg = f"[-] {site}: {str(e)}"
+                error_msg = f"[-] {site}: {type(e).__name__}: {str(e)}"
                 results.append(error_msg)
                 failures += 1
                 failed_sites.append(f"{urlparse(site).hostname} (Error)")
             pbar.update(1)
 
-    # Print results after progress bar is done (output to stdout, not logger)
-    if options.output_format == "json":
-        print(format_json_list(site_statuses, options.verbose))
-    elif options.output_format == "csv":
-        print(format_csv_list(site_statuses, options.verbose))
-    else:
-        print("\n".join(filter(None, results)))
+    _print_site_results(site_statuses, results, options)
     return successful, failures
 
 
@@ -456,7 +463,6 @@ def check_sites_parallel(options, successful, failures, failed_sites):
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=options.workers
         ) as executor:
-            # Submit all tasks
             future_to_site = {
                 executor.submit(
                     check_site,
@@ -472,14 +478,12 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                 for site in options.site
             }
 
-            # Process completed futures
             for future in concurrent.futures.as_completed(future_to_site):
                 site = future_to_site[future]
                 try:
                     status = future.result()
                     site_statuses.append(status)
 
-                    # Only format for table output
                     if options.output_format == "table":
                         formatted_output = print_format(
                             status,
@@ -495,19 +499,13 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                         status, site, successful, failures, failed_sites
                     )
                 except Exception as e:
-                    error_msg = f"[-] {site}: {str(e)}"
+                    error_msg = f"[-] {site}: {type(e).__name__}: {str(e)}"
                     results.append(error_msg)
                     failures += 1
                     failed_sites.append(f"{urlparse(site).hostname} (Error)")
                 pbar.update(1)
 
-    # Print results after progress bar is done (output to stdout, not logger)
-    if options.output_format == "json":
-        print(format_json_list(site_statuses, options.verbose))
-    elif options.output_format == "csv":
-        print(format_csv_list(site_statuses, options.verbose))
-    else:
-        print("\n".join(filter(None, results)))
+    _print_site_results(site_statuses, results, options)
     return successful, failures
 
 
@@ -532,11 +530,9 @@ def check_sites_async(options, successful, failures, failed_sites):
         )
     except Exception as e:
         logger = get_logger()
-        logger.error("Async check failed: %s", str(e))
+        logger.error("Async check failed: %s: %s", type(e).__name__, str(e))
         return successful, failures + len(options.site)
 
-    # Process results
-    site_statuses = list(site_statuses)
     if options.output_format == "table":
         for status in site_statuses:
             formatted_output = print_format(
@@ -554,13 +550,7 @@ def check_sites_async(options, successful, failures, failed_sites):
             status, site, successful, failures, failed_sites
         )
 
-    if options.output_format == "json":
-        print(format_json_list(site_statuses, options.verbose))
-    elif options.output_format == "csv":
-        print(format_csv_list(site_statuses, options.verbose))
-    else:
-        print("\n".join(filter(None, results)))
-
+    _print_site_results(site_statuses, results, options)
     return successful, failures
 
 
@@ -609,19 +599,6 @@ def _print_verbose_header():
     logger.info("\thttpcheck %s:", date_stamp)
 
 
-def _handle_stdin_input(options):
-    """Handle input from stdin if no arguments given."""
-    if not options.site:
-        if not sys.stdin.isatty():
-            options.site = [line.strip() for line in sys.stdin if line.strip()]
-        else:
-            parser = argparse.ArgumentParser()
-            parser.error(
-                "[-] Please specify a website or a file with sites to check, "
-                "use --help for more info."
-            )
-
-
 def _process_sites(options, successful, failures, failed_sites):
     """Process sites either serially or in parallel."""
     if getattr(options, "async_mode", False) is True:
@@ -661,7 +638,6 @@ def main():
     if options.verbose:
         _print_verbose_header()
 
-    _handle_stdin_input(options)
     failures = check_tlds(options, failures, failed_sites)
     successful, failures = _process_sites(options, successful, failures, failed_sites)
 
