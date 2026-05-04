@@ -96,10 +96,17 @@ jobs:
           pytest
 
       - name: Run pip-audit
-        shell: bash
         run: |
-          pip show httpcheck | grep "^Requires:" | sed 's/Requires: //' \
-            | tr ',' '\n' | sed 's/ //g' | grep -v '^$' | pip-audit -r /dev/stdin
+          python -c "
+          import subprocess, pathlib
+          r = subprocess.run(['pip', 'show', 'httpcheck'], capture_output=True, text=True)
+          for line in r.stdout.splitlines():
+              if line.startswith('Requires:'):
+                  deps = [d.strip() for d in line.replace('Requires:', '').split(',') if d.strip()]
+                  pathlib.Path('_pip_audit_deps.txt').write_text('\n'.join(deps))
+                  break
+          "
+          pip-audit -r _pip_audit_deps.txt
 
   security:
     name: Security Scanning
@@ -129,8 +136,16 @@ jobs:
 
       - name: Run pip-audit security check
         run: |
-          pip show httpcheck | grep "^Requires:" | sed 's/Requires: //' \
-            | tr ',' '\n' | sed 's/ //g' | grep -v '^$' | pip-audit -r /dev/stdin
+          python -c "
+          import subprocess, pathlib
+          r = subprocess.run(['pip', 'show', 'httpcheck'], capture_output=True, text=True)
+          for line in r.stdout.splitlines():
+              if line.startswith('Requires:'):
+                  deps = [d.strip() for d in line.replace('Requires:', '').split(',') if d.strip()]
+                  pathlib.Path('_pip_audit_deps.txt').write_text('\n'.join(deps))
+                  break
+          "
+          pip-audit -r _pip_audit_deps.txt
 
       - name: Run Bandit security linter
         run: |
