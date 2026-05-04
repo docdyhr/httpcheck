@@ -17,6 +17,7 @@ from tqdm import tqdm
 # Import from local modules
 from .async_site_checker import async_check_sites
 from .common import VERSION, InvalidTLDException, SiteStatus, parse_custom_headers
+from .config import load_config
 from .file_handler import FileInputHandler, url_validation
 from .logger import get_logger, setup_logger
 from .notification import notify
@@ -302,7 +303,21 @@ def _validate_sites(sites):
 def get_arguments():
     """Handle website arguments."""
     parser = _create_argument_parser()
+
+    # Apply config file defaults; CLI flags override these via argparse precedence.
+    config = load_config()
+    if config:
+        # Config [headers] arrive as a list; merge with any CLI -H values later.
+        parser.set_defaults(**config)
+
     options = parser.parse_args()
+
+    # Merge config headers (already set as default) with any CLI -H additions.
+    # parse_args() replaces the default list entirely when -H is supplied, so
+    # we must re-combine them here.
+    config_headers = config.get("headers", [])
+    cli_headers = [h for h in (options.headers or []) if h not in config_headers]
+    options.headers = (config_headers + cli_headers) or None
 
     # Setup logging based on options
     import logging

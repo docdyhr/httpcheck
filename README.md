@@ -356,6 +356,35 @@ httpcheck --timeout 30 --retries 5 --retry-delay 2.0 slow.example.com
 httpcheck -H "API-Key: secret" --output json --no-verify-ssl https://api.example.com
 ```
 
+### configuration file
+
+httpcheck reads defaults from `~/.httpcheck.toml` (user-wide) and/or `./.httpcheck.toml` (project-local). Project-level settings override user-level settings; any CLI flag always takes final precedence.
+
+```toml
+# ~/.httpcheck.toml
+
+[defaults]
+timeout = 10.0
+retries = 3
+follow_redirects = "always"   # always | never | http-only | https-only
+output_format = "table"       # table | json | csv
+verify_ssl = true
+workers = 20
+retry_delay = 0.5
+max_redirects = 10
+
+[headers]
+User-Agent = "mybot/1.0"
+Accept = "application/json"
+
+[notifications]
+enabled = true
+on_failure = true
+sound = "Ping"
+```
+
+Unknown keys are silently ignored with a `UserWarning`. Invalid TOML falls back to no config (also a `UserWarning`).
+
 ### file input examples
 
 Create a domains file with comments and use it with httpcheck:

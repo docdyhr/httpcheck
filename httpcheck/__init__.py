@@ -12,6 +12,7 @@ __email__ = "thomas@dyhr.com"
 # Import specific items for public API
 from .cli import main
 from .common import VERSION, InvalidTLDException, SiteStatus
+from .config import DEFAULT_CONFIG, load_config
 from .file_handler import FileInputHandler, url_validation
 from .notification import notify
 from .output_formatter import (
@@ -37,6 +38,8 @@ from .validation import (
 __all__ = [
     # Core functionality
     "check_site",
+    "load_config",
+    "DEFAULT_CONFIG",
     "print_format",
     "format_json",
     "format_csv",
