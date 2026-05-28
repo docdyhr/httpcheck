@@ -1,3 +1,13 @@
+<div align="right">
+
+<a href="https://railway.com?referralCode=QhjuBc">
+
+  <img width="160" src="https://raw.githubusercontent.com/docdyhr/.github/main/assets/railway-corner-v2@2x.png" alt="Deploy on Railway — $20 free credits">
+
+</a>
+
+</div>
+
 [![PyPI version](https://badge.fury.io/py/httpcheck.svg)](https://badge.fury.io/py/httpcheck)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/httpcheck)](https://pypi.org/project/httpcheck/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/httpcheck)](https://pypi.org/project/httpcheck/)
