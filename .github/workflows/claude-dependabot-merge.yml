@@ -3,16 +3,13 @@
 # Thin caller that delegates to the reusable workflow in docdyhr/.github.
 # Replaces the previous ~27 KB inline implementation.
 #
+# Schedule is owned by the cross-repo orchestrator in docdyhr/.github.
 # To upgrade the reusable workflow across all consumers, bump the @v1 ref in
 # docdyhr/.github (re-tag) — this caller automatically picks it up on next run.
 
 name: Claude Dependabot Auto-Merge
 
 on:
-  schedule:
-    # Sunday 06:00 UTC — runs before the Monday status check job.
-    - cron: "0 6 * * 0"
-
   push:
     paths:
       - ".github/workflows/claude-dependabot-merge.yml"
