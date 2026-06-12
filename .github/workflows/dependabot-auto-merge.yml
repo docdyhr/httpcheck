@@ -1,0 +1,64 @@
+# .github/workflows/dependabot-auto-merge.yml
+#
+# Native patch-bump auto-merge for Dependabot PRs — no AI required.
+#
+# Replaces the Claude-based claude-dependabot-merge.yml for PATCH version bumps.
+# Minor and major bumps still require human review (and optionally Claude triage).
+#
+# Prerequisites:
+#   - "Allow auto-merge" must be enabled in Settings → General → Pull Requests.
+#   - Required CI checks must pass before the PR can merge.
+#
+# Behaviour:
+#   - patch bump   → approve + enable auto-merge (merges when CI passes)
+#   - minor bump   → skipped here; handled by Claude triage if configured
+#   - major bump   → skipped here; requires manual review
+
+name: Dependabot Patch Auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge patch bump
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Approve patch bump
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        continue-on-error: true
+
+      - name: Enable auto-merge for patch bump
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch'
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
+          echo "Auto-merge enabled for: $PR_NUMBER ($UPDATE_TYPE)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+
+      - name: Report skipped non-patch PR
+        if: steps.meta.outputs.update-type != 'version-update:semver-patch'
+        run: |
+          echo "Skipping non-patch bump (type=$UPDATE_TYPE) — requires review."
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}

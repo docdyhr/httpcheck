@@ -23,10 +23,10 @@ on:
         default: dry-run
         required: true
       scope:
-        description: "all | security | patch"
+        description: "minor (default) | all | security | patch — 'minor' skips patch bumps auto-merged natively"
         type: choice
-        options: [all, security, patch]
-        default: all
+        options: [minor, all, security, patch]
+        default: minor
         required: false
       max_budget_usd:
         description: "Maximum Claude API spend in USD for this run"
@@ -51,6 +51,6 @@ jobs:
     secrets: inherit
     with:
       merge_mode: ${{ github.event.inputs.merge_mode || 'dry-run' }}
-      scope: ${{ github.event.inputs.scope || 'all' }}
+      scope: ${{ github.event.inputs.scope || 'minor' }}
       max_budget_usd: ${{ github.event.inputs.max_budget_usd || '0.30' }}
       pr_numbers: ${{ github.event.inputs.pr_numbers || '' }}
