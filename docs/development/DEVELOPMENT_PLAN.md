@@ -2,215 +2,107 @@
 
 ## Executive Summary
 
-This document outlines the comprehensive development plan for httpcheck v1.4.0-2.0.0, focusing on technical debt reduction, feature enhancement, and long-term architectural improvements.
+This document outlines the development plan for httpcheck, tracking completed work and
+the active roadmap through v2.0.0.
 
-## Current State Assessment
+## Current State (v1.4.3 — Released)
 
-- **Version**: 1.3.1
-- **Main File**: httpcheck.py (modularized)
-- **Architecture**: Modular package structure
-- **Dependencies**: requests, tabulate, tqdm (managed via pyproject.toml)
-- **Test Coverage**: 82% (exceeds 70% target)
-- **Code Quality**: Pylint 10.0/10 maintained
+- **Version**: 1.4.3
+- **Architecture**: Fully modular package (11 specialized modules)
+- **Dependencies**: requests, httpx, tabulate, tqdm, validators, tomli (pyproject.toml)
+- **Test Coverage**: 90%+ (exceeds 70% target); 387 tests, 1 skipped
+- **Code Quality**: pylint 10.0/10 maintained
+- **Python Floor**: 3.10+
+- **Security**: pip-audit clean; no known vulnerabilities
 
-## Development Phases
+## Completed Work
 
-### Phase 1: Foundation Stabilization (Weeks 1-3)
-**Goal**: Reduce technical debt and establish solid foundation
+### v1.4.0 — Modular Architecture
+- [x] Full package restructure: `httpcheck/` with 11 specialised modules
+- [x] `cli.py` — centralised argument parser and entry point
+- [x] `common.py` — shared constants, types, utilities
+- [x] `tld_manager.py` — TLD validation, JSON-cached from publicsuffix.org
+- [x] `file_handler.py` — file input with security validation
+- [x] `site_checker.py` — HTTP request handling and retry logic
+- [x] `async_site_checker.py` — async I/O via httpx
+- [x] `output_formatter.py` — table/JSON/CSV output
+- [x] `notification.py` — macOS/Linux system notifications
+- [x] `logger.py` — centralised structured logging
+- [x] `validation.py` — enhanced input validation and security
+- [x] `config.py` — TOML configuration file support
 
-#### Week 1: Security & Dependencies ✅ COMPLETED
-- [x] Replace pickle with JSON for TLD cache serialization ✅
-- [x] Consolidate requirements files into pyproject.toml ✅
-- [x] Audit and remove unused dependencies ✅
-- [x] Fix any security vulnerabilities ✅
+### v1.4.1 — Security & Testing
+- [x] Replaced pickle with JSON for TLD cache (security fix)
+- [x] pip-audit clean
+- [x] Enhanced input validation and injection protection
+- [x] SSL certificate verification options
 
-#### Week 2-3: Code Modularization ✅ COMPLETED
-- [x] Create `httpcheck/` package directory structure ✅
-- [x] Extract `tld_manager.py` from main file ✅
-- [x] Extract `file_handler.py` for input processing ✅
-- [x] Extract `site_checker.py` for HTTP operations ✅
-- [x] Extract `output_formatter.py` for result display ✅
-- [x] Extract `notification.py` for system notifications ✅
-- [x] Create `common.py` for shared utilities and constants ✅
-- [x] Update main `httpcheck.py` to use modular imports ✅
-- [x] Ensure backward compatibility ✅
+### v1.4.2 — Output & Request Features
+- [x] JSON output format (`--output json`)
+- [x] CSV output format (`--output csv`)
+- [x] Custom HTTP headers (`-H` flag)
+- [x] Configurable retry delay (`--retry-delay`)
+- [x] SSL verification control (`--no-verify-ssl`)
 
-### Phase 2: Testing & Quality (Weeks 4-6)
-**Goal**: Establish comprehensive testing framework
+### v1.4.3 — Observability & Quality
+- [x] Structured logging: `--debug`, `--log-file`, `--log-json`
+- [x] pytest-asyncio integration; async site checker tests
+- [x] Performance benchmark suite (18 tests)
+- [x] 387 tests, 90%+ coverage
+- [x] PyPI published via GitHub Actions OIDC trusted publishers
+- [x] Configuration file support (`~/.httpcheck.toml`)
 
-#### Week 4: Test Infrastructure ✅ COMPLETED
-- [x] Set up pytest framework ✅
-- [x] Create `tests/` directory structure ✅
-- [x] Add test fixtures and mock utilities ✅
-- [x] Configure coverage reporting ✅
+## Active Roadmap
 
-#### Week 5-6: Test Implementation ✅ COMPLETED (in Week 4!)
-- [x] Unit tests for each module (>70% coverage target) ✅ (89.36% achieved)
-- [x] Integration tests for CLI interface ✅
-- [x] Mock network requests for reliable testing ✅
-- [x] Add CI/CD test automation ✅
+### v1.5.0 — Monitoring & UX (Next Release)
 
-### Phase 3: Core Features (Weeks 7-10)
-**Goal**: Implement high-priority user-requested features
+#### Monitoring Mode
+- [ ] Continuous site monitoring with configurable intervals
+- [ ] Persistent failure state across runs
+- [ ] Alert thresholds (fail N times before notifying)
 
-#### Week 7-8: Output Formats ✅ COMPLETED
-- [x] Implement JSON output format (`--output json`) ✅
-- [x] Add CSV export capability (`--output csv`) ✅
-- [x] Enhance table formatting options ✅
+#### Enhanced UX
+- [ ] Colorised terminal output (green/red/yellow per status class)
+- [ ] Improved progress reporting for large lists
+- [ ] `--summary-only` flag for batch runs
 
-#### Week 9-10: Request Customization
-- [ ] Support custom HTTP headers (`-H` flag)
-- [ ] Add request timeout configuration
-- [ ] Implement retry logic improvements
-- [ ] Add SSL verification options
+#### Configuration Improvements
+- [ ] Profile support in config file (`[profiles.strict]`, etc.)
+- [ ] Environment variable overrides (`HTTPCHECK_TIMEOUT`, etc.)
 
-### Phase 4: Performance & Advanced Features (Weeks 11-16)
-**Goal**: Optimize performance and add advanced capabilities
+### v1.6.0 — Advanced Features
 
-#### Week 11-12: Performance Optimization
-- [ ] Implement async I/O for concurrent requests
-- [ ] Add connection pooling
-- [ ] Implement rate limiting (`--rate-limit`)
-- [ ] Optimize memory usage
+- [ ] Rate limiting (`--rate-limit N` requests/second)
+- [ ] Content verification (check response body, not just status)
+- [ ] Export to SQLite for historical trending
+- [ ] Webhook notifications (POST result JSON to a URL)
 
-#### Week 13-14: Configuration Management
-- [ ] Add configuration file support (~/.httpcheck.conf)
-- [ ] Support environment variable configuration
-- [ ] Add profile-based configurations
+### v2.0.0 — Long-term Vision
 
-#### Week 15-16: Advanced Features
-- [ ] Colorized terminal output
-- [ ] Enhanced redirect handling
-- [ ] Content verification capabilities
-- [ ] Basic monitoring mode
-
-## Technical Specifications
-
-### Module Architecture
-```
-httpcheck/
-├── __init__.py           # Package initialization
-├── common.py            # Shared constants and utilities
-├── tld_manager.py       # TLD validation with JSON caching
-├── file_handler.py      # File input processing
-├── site_checker.py      # HTTP request handling
-├── output_formatter.py  # Result formatting and display
-├── notification.py      # System notifications
-└── config.py           # Configuration management
-```
-
-### Configuration File Format
-```toml
-[defaults]
-timeout = 10
-retries = 3
-user_agent = "httpcheck/1.4.0"
-
-[output]
-format = "table"  # table, json, csv
-colorized = true
-verbose = false
-
-[notifications]
-enabled = true
-on_failure_only = true
-```
-
-### New CLI Features
-```bash
-# JSON output
-httpcheck --output json example.com
-
-# Custom headers
-httpcheck -H "Authorization: Bearer token" example.com
-
-# Rate limiting
-httpcheck --rate-limit 5 @domains.txt
-
-# Configuration file
-httpcheck --config ~/.httpcheck.conf example.com
-
-# CSV export
-httpcheck --output csv --file results.csv @domains.txt
-```
+- [ ] Plugin/hook system for custom checks
+- [ ] Dashboard output (terminal UI)
+- [ ] Distributed checking across multiple nodes
 
 ## Quality Standards
 
-### Code Quality
-- Maintain pylint score of 10.0/10
-- Follow PEP 8 style guidelines
-- Use type hints where appropriate
-- Document all public functions and classes
+### Invariants (never regress)
+- pylint score 10.0/10
+- Test coverage ≥ 70% (current: 90%+)
+- pip-audit clean
+- CLI interface backward-compatible
+- Python 3.10+ floor
 
-### Testing Requirements
-- Minimum 70% test coverage
-- All new features must include tests
-- Mock external dependencies
-- Test both success and failure scenarios
+### Development Workflow
+```bash
+# Before each commit
+source .venv/bin/activate
+pylint --fail-under=10.0 httpcheck.py httpcheck/*.py
+pytest tests/ -q
+httpcheck google.com  # smoke test
+```
 
-### Documentation Standards
-- Update README.md for new features
-- Maintain CLAUDE.md for AI assistant guidance
-- Include usage examples for new features
-- Update help text and error messages
-
-## Risk Management
-
-### Backward Compatibility
-- Maintain existing CLI interface
-- Preserve all current functionality
-- Gradual migration path for users
-- Clear deprecation warnings where needed
-
-### Testing Strategy
-- Comprehensive test suite before refactoring
-- Continuous integration testing
-- Manual testing on macOS and Linux
-- Performance regression testing
-
-### Rollback Plan
-- Git branching strategy for safe development
-- Feature flags for new functionality
-- Ability to revert to previous version
-- Documentation of breaking changes
-
-## Success Metrics
-
-### Technical Metrics
-- [ ] Pylint score maintained at 10.0/10
-- [ ] Test coverage >70%
-- [ ] No performance regression
-- [ ] Zero critical security vulnerabilities
-
-### User Experience Metrics
-- [ ] All existing functionality preserved
-- [ ] New features work as documented
-- [ ] Error messages are clear and helpful
-- [ ] Documentation is complete and accurate
-
-### Development Metrics
-- [ ] Code is maintainable and modular
-- [ ] New features can be added easily
-- [ ] CI/CD pipeline is reliable
-- [ ] Development workflow is efficient
-
-## Timeline Summary
-
-| Phase | Duration | Key Deliverables |
-|-------|----------|------------------|
-| Phase 1 | Weeks 1-3 | Modular architecture, security fixes |
-| Phase 2 | Weeks 4-6 | Comprehensive tests, CI/CD |
-| Phase 3 | Weeks 7-10 | JSON/CSV output, custom headers |
-| Phase 4 | Weeks 11-16 | Async I/O, config files, monitoring |
-
-**Total Duration**: 16 weeks (4 months)
-**Target Release**: httpcheck v1.4.0
-
-## Next Steps
-
-1. **Immediate Actions**: Start with Phase 1, Week 1 tasks
-2. **Resource Planning**: Ensure development environment is ready
-3. **Communication**: Update all stakeholders on the plan
-4. **Monitoring**: Track progress weekly against this plan
-
-This plan balances technical debt reduction with feature development, ensuring a solid foundation for future growth while delivering immediate value to users.
+### Test Strategy
+- Mock all network I/O (`requests.Session.get`, `httpx.AsyncClient`)
+- Use `AsyncMock` for async patches to avoid "coroutine never awaited" warnings
+- Mock filesystem and notification subsystems
+- Performance benchmarks run in CI to catch regressions

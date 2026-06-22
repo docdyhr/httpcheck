@@ -85,7 +85,7 @@ class TLDManager:
         if force_update or not cache_loaded:
             try:
                 self._update_tld_list()
-            except Exception as e:
+            except (OSError, ValueError, requests.exceptions.RequestException) as e:
                 if self.verbose:
                     print(f"[-] Error updating TLD list: {str(e)}")
                 # If update fails and we don't have a cache, try to load from local file
@@ -96,7 +96,7 @@ class TLDManager:
             # Local file existed but was empty/invalid; attempt network update
             try:
                 self._update_tld_list()
-            except Exception as e:
+            except (OSError, ValueError, requests.exceptions.RequestException) as e:
                 if self.verbose:
                     print(f"[-] Could not update TLD list after local file load: {e}")
 
@@ -188,7 +188,7 @@ class TLDManager:
             else:
                 raise ValueError("Downloaded TLD list is empty")
 
-        except Exception as e:
+        except (OSError, ValueError, requests.exceptions.RequestException) as e:
             if self.verbose:
                 print(f"[-] Failed to update TLD list: {str(e)}")
             raise
@@ -223,7 +223,7 @@ class TLDManager:
             self._save_to_cache()
             return True
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             if self.verbose:
                 print(f"[-] Error loading local TLD file: {str(e)}")
             return False

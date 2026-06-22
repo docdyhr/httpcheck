@@ -5,12 +5,13 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, mock_open, patch
 
+import requests
+
 from httpcheck.common import InvalidTLDException
 from httpcheck.tld_manager import TLDManager
 
 
 class TestTLDManager(unittest.TestCase):
-
     def setUp(self):
         """Set up for the tests."""
         with patch("os.path.exists") as self.mock_exists:
@@ -328,7 +329,11 @@ class TestTLDManager(unittest.TestCase):
         with (
             patch.object(mgr, "_load_from_cache", return_value=False),
             patch.object(mgr, "_load_from_local_file", return_value=True),
-            patch.object(mgr, "_update_tld_list", side_effect=Exception("net fail")),
+            patch.object(
+                mgr,
+                "_update_tld_list",
+                side_effect=requests.exceptions.ConnectionError("net fail"),
+            ),
         ):
             # Should not raise; the bare except is now logged
             mgr._load_tld_data(force_update=False)

@@ -72,7 +72,7 @@ class FileInputHandler:
         # Validate comment style
         try:
             self.comment_style = self.validator.validate_comment_style(comment_style)
-        except Exception as e:
+        except (ValidationError, ValueError) as e:
             if verbose:
                 print(
                     f"Warning: Invalid comment style '{comment_style}', using 'both': {e}"
@@ -183,7 +183,7 @@ class FileInputHandler:
                 if pattern.search(line):
                     raise ValidationError("Potentially malicious input detected")
             return True
-        except Exception:
+        except (ValidationError, re.error, TypeError):
             self.security_violations += 1
             if self.verbose:
                 print(f"[-] Line {line_num}: Security violation detected, skipping")

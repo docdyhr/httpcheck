@@ -116,7 +116,7 @@ async def test_async_single_success(mock_get):
 @pytest.mark.asyncio
 @patch("httpcheck.async_site_checker.httpx.AsyncClient.get", new_callable=AsyncMock)
 async def test_async_retries_then_success(mock_get):
-    boom = Exception("boom")
+    boom = httpx.ConnectError("boom")
     boom.request = types.SimpleNamespace(url=types.SimpleNamespace(host="example.com"))
     mock_get.side_effect = [boom, _mock_response(status_code=204)]
     result = await async_check_site("https://example.com", retries=1, retry_delay=0)
@@ -217,8 +217,8 @@ async def test_async_transport_error(mock_get):
 @pytest.mark.asyncio
 @patch("httpcheck.async_site_checker.httpx.AsyncClient.get", new_callable=AsyncMock)
 async def test_async_generic_exception_all_retries_exhausted(mock_get):
-    """After all retries, a generic exception returns [connection error] status."""
-    mock_get.side_effect = RuntimeError("something broke")
+    """After all retries, a transport error returns [connection error] status."""
+    mock_get.side_effect = httpx.ConnectError("something broke")
     result = await async_check_site("https://example.com", retries=1, retry_delay=0)
     assert result.status == "[connection error]"
     assert "something broke" in result.message
@@ -228,7 +228,7 @@ async def test_async_generic_exception_all_retries_exhausted(mock_get):
 @patch("httpcheck.async_site_checker.httpx.AsyncClient.get", new_callable=AsyncMock)
 async def test_async_exception_without_request_attr(mock_get):
     """Exception without .request attribute uses site string as domain."""
-    exc = RuntimeError("no request attr")
+    exc = httpx.ConnectError("no request attr")
     mock_get.side_effect = exc
     result = await async_check_site("https://example.com", retries=0)
     assert result.domain == "https://example.com"

@@ -25,7 +25,7 @@
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
 * **Current Version**: 1.4.3 (Enterprise-Grade Improvements)
 * **Target Version**: 1.5.0 (Performance & Configuration Features)
-* **Programming Language**: Python 3.9+
+* **Programming Language**: Python 3.10+
 * **Author**: Thomas Juul Dyhr
 * **Purpose**: Advanced HTTP status checker with monitoring capabilities
 * **Development Status**: Active - See [ROADMAP.md](ROADMAP.md) for development plan

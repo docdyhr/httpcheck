@@ -12,9 +12,10 @@ import textwrap
 from datetime import datetime
 from urllib.parse import urlparse
 
+# Import from local modules
+from requests.exceptions import RequestException
 from tqdm import tqdm
 
-# Import from local modules
 from .async_site_checker import async_check_sites
 from .common import VERSION, InvalidTLDException, SiteStatus, parse_custom_headers
 from .config import load_config
@@ -257,7 +258,7 @@ def _process_file_input(site, options):
             comment_style=options.comment_style,
         )
         return list(handler.parse())
-    except Exception as e:
+    except (OSError, ValueError) as e:
         logger = get_logger()
         logger.error("Error processing file %s: %s", site[1:], str(e))
         return []
@@ -437,7 +438,7 @@ def check_sites_serial(options, successful, failures, failed_sites):
                 successful, failures = process_site_status(
                     status, site, successful, failures, failed_sites
                 )
-            except Exception as e:
+            except (OSError, ValueError, RequestException) as e:
                 error_msg = f"[-] {site}: {type(e).__name__}: {str(e)}"
                 results.append(error_msg)
                 failures += 1
@@ -498,7 +499,7 @@ def check_sites_parallel(options, successful, failures, failed_sites):
                     successful, failures = process_site_status(
                         status, site, successful, failures, failed_sites
                     )
-                except Exception as e:
+                except (OSError, ValueError, RequestException) as e:
                     error_msg = f"[-] {site}: {type(e).__name__}: {str(e)}"
                     results.append(error_msg)
                     failures += 1
@@ -528,7 +529,7 @@ def check_sites_async(options, successful, failures, failed_sites):
                 concurrency=options.workers,
             )
         )
-    except Exception as e:
+    except (OSError, RuntimeError, asyncio.CancelledError) as e:
         logger = get_logger()
         logger.error("Async check failed: %s: %s", type(e).__name__, str(e))
         return successful, failures + len(options.site)
@@ -584,7 +585,7 @@ def check_tlds(options, failures, failed_sites):
                 failures += 1
                 failed_sites.append(f"{urlparse(site).hostname} (Invalid TLD)")
 
-    except Exception as e:
+    except (OSError, ValueError, RequestException) as e:
         if options.verbose:
             logger.error("Error during TLD validation: %s", str(e))
 

@@ -171,7 +171,7 @@ async def async_check_site(
                     response_time=response_time,
                     redirect_timing=redirect_timing,
                 )
-            except (httpx.TimeoutException, httpx.TransportError, Exception) as exc:
+            except (httpx.RequestError, httpx.HTTPError, ValueError, OSError) as exc:
                 if attempt == retries:
                     status = (
                         "[timeout]"

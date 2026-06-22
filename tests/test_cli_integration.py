@@ -10,7 +10,7 @@ import argparse
 import io
 import sys
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
 
 import pytest
 
@@ -715,7 +715,7 @@ class TestCheckSitesSerial:
     def test_check_sites_serial_with_exception(self, mock_headers, mock_check, capsys):
         """Test serial checking with exception."""
         mock_headers.return_value = {}
-        mock_check.side_effect = Exception("Connection failed")
+        mock_check.side_effect = OSError("Connection failed")
 
         options = MagicMock()
         options.site = ["http://example.com"]
@@ -1040,9 +1040,9 @@ class TestGetArguments:
 class TestCheckSitesAsync:
     """Test async site checking functionality."""
 
-    @patch("httpcheck.cli.asyncio.run")
+    @patch("httpcheck.cli.async_check_sites", new_callable=AsyncMock)
     @patch("httpcheck.cli.parse_custom_headers")
-    def test_check_sites_async_success(self, mock_headers, mock_run, capsys):
+    def test_check_sites_async_success(self, mock_headers, mock_async_check, capsys):
         """Test async checking with success."""
         mock_headers.return_value = {}
         statuses = [
@@ -1055,7 +1055,7 @@ class TestCheckSitesAsync:
                 redirect_timing=[],
             )
         ]
-        mock_run.return_value = statuses
+        mock_async_check.return_value = statuses
 
         options = MagicMock()
         options.site = ["http://example.com"]
@@ -1077,9 +1077,9 @@ class TestCheckSitesAsync:
         assert successful == 1
         assert failures == 0
 
-    @patch("httpcheck.cli.asyncio.run")
+    @patch("httpcheck.cli.async_check_sites", new_callable=AsyncMock)
     @patch("httpcheck.cli.parse_custom_headers")
-    def test_check_sites_async_json_output(self, mock_headers, mock_run):
+    def test_check_sites_async_json_output(self, mock_headers, mock_async_check):
         """Test async checking with JSON output."""
         mock_headers.return_value = {}
         statuses = [
@@ -1092,7 +1092,7 @@ class TestCheckSitesAsync:
                 redirect_timing=[],
             )
         ]
-        mock_run.return_value = statuses
+        mock_async_check.return_value = statuses
 
         options = MagicMock()
         options.site = ["http://example.com"]
@@ -1112,15 +1112,17 @@ class TestCheckSitesAsync:
         assert successful == 1
         assert failures == 0
 
-    @patch("httpcheck.cli.asyncio.run")
+    @patch("httpcheck.cli.async_check_sites", new_callable=AsyncMock)
     @patch("httpcheck.cli.parse_custom_headers")
     @patch("httpcheck.cli.get_logger")
-    def test_check_sites_async_exception(self, mock_logger, mock_headers, mock_run):
-        """Test async checking when asyncio.run raises an exception."""
+    def test_check_sites_async_exception(
+        self, mock_logger, mock_headers, mock_async_check
+    ):
+        """Test async checking when async_check_sites raises an exception."""
         mock_logger_instance = MagicMock()
         mock_logger.return_value = mock_logger_instance
         mock_headers.return_value = {}
-        mock_run.side_effect = RuntimeError("event loop error")
+        mock_async_check.side_effect = RuntimeError("event loop error")
 
         options = MagicMock()
         options.site = ["http://example.com", "http://google.com"]
@@ -1164,7 +1166,7 @@ class TestCheckTLDsExtended:
     @patch("httpcheck.cli.TLDManager")
     def test_check_tlds_general_exception_suppressed(self, mock_tld_manager):
         """Test that a general exception in TLD manager init is caught."""
-        mock_tld_manager.side_effect = Exception("Network error")
+        mock_tld_manager.side_effect = OSError("Network error")
 
         options = MagicMock()
         options.disable_tld = False
