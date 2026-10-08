@@ -95,7 +95,7 @@
 - [ ] **Configuration File Support**
 
   ```toml
-  # ~/.httpcheck.toml or ./httpcheck.toml
+  # ~/.httpcheck.toml or ./.httpcheck.toml
   [defaults]
   timeout = 5.0
   retries = 2

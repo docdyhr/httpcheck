@@ -1,7 +1,7 @@
 """Configuration file support for httpcheck.
 
-Loads user defaults from ~/.httpcheck.toml and/or ./httpcheck.toml.
-Project-level config (./httpcheck.toml) takes precedence over user-level
+Loads user defaults from ~/.httpcheck.toml and/or ./.httpcheck.toml.
+Project-level config (./.httpcheck.toml) takes precedence over user-level
 (~/.httpcheck.toml). CLI flags always override both.
 """
 
