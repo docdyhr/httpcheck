@@ -25,7 +25,7 @@ archived for reference; active development is at the top.
 ### ✅ Phase 2: Configuration File Support (COMPLETE)
 
 - [x] `config.py` module with TOML support
-- [x] Config discovery: `~/.httpcheck.toml`, `./httpcheck.toml`, env var
+- [x] Config discovery: `~/.httpcheck.toml` (user) and `./.httpcheck.toml` (project)
 - [x] CLI flags override config file
 - [x] Sections: `[defaults]`, `[headers]`, `[notifications]`
 
@@ -148,7 +148,6 @@ All items delivered through v1.4.3 (2026-03-09):
 - [x] Output formats: JSON, CSV, table
 - [x] Custom HTTP headers (`-H`), SSL control (`--no-verify-ssl`)
 - [x] Package installation via `pip install -e .`
-- [x] Async I/O groundwork (`async_site_checker.py`)
 - [x] Centralized logging (`logger.py`), input validation module
 - [x] GitHub Actions CI: test matrix Python 3.9–3.14, Dependabot, auto-merge
 - [x] pylint 10.0/10 maintained throughout
