@@ -9,10 +9,10 @@ features including threading, redirect handling, TLD validation, and macOS
 integration.
 
 - **Current Version**: 1.4.3 (RELEASED ✅)
-- **Target Version**: 1.5.0 (Configuration and Monitoring)
+- **Target Version**: 1.5.0 (async I/O and config files merged on `main`, unreleased; monitoring mode in progress)
 - **Architecture**: Fully modular (11 specialized modules)
 - **Code Quality**: Maintains pylint 10.0/10 score
-- **Test Coverage**: 88% (exceeding 70% target)
+- **Test Coverage**: 90% (exceeding 70% target)
 - **Security Status**: No known vulnerabilities
 
 ## 🛠️ Development Environment
@@ -52,9 +52,15 @@ httpcheck --output csv @examples/domains.txt
 # Custom headers and SSL options
 httpcheck -H "User-Agent: MyBot/1.0" --no-verify-ssl https://example.com
 
+# Async mode via httpx (v1.5.0, unreleased; cannot be combined with -f)
+httpcheck --async @examples/domains.txt
+
 # Legacy script usage (still supported)
 python3 httpcheck.py https://example.com
 ```
+
+Config file defaults (v1.5.0, unreleased): `~/.httpcheck.toml` (user) and
+`./.httpcheck.toml` (project, overrides user). CLI flags always take precedence.
 
 ### Code Quality Standards
 ```bash
@@ -70,16 +76,17 @@ pip-audit
 
 ## 🏗️ Architecture & Implementation Guide
 
-### ✅ Current Modular Structure (v1.4.3 - IMPLEMENTED)
+### ✅ Current Modular Structure (`main` branch)
 ```
 httpcheck/
 ├── __init__.py             # Package initialization and public API
 ├── cli.py                  # Argument parser and main entry point
 ├── common.py               # Shared constants, types, utilities
+├── config.py               # TOML config file loading (v1.5.0, unreleased)
 ├── tld_manager.py          # TLD validation with JSON caching
 ├── file_handler.py         # File input with security validation
 ├── site_checker.py         # HTTP request handling and retry logic
-├── async_site_checker.py   # Async I/O for high-concurrency checks (httpx)
+├── async_site_checker.py   # Async I/O for concurrent checks (httpx; v1.5.0, unreleased)
 ├── output_formatter.py     # Multiple output formats (table/JSON/CSV)
 ├── notification.py         # System notifications (macOS/Linux)
 ├── logger.py               # Centralized logging system
@@ -90,7 +97,7 @@ httpcheck/
 ```
 httpcheck/
 ├── httpcheck/           # Main package source code
-├── tests/              # Comprehensive test suite (182 tests)
+├── tests/              # Comprehensive test suite (388 tests)
 ├── examples/           # Example configuration and domain files
 ├── docs/               # Documentation
 │   ├── development/    # Development guides and plans
@@ -131,9 +138,12 @@ All dependencies are managed through `pyproject.toml`:
 ```toml
 [project]
 dependencies = [
-    "requests>=2.32.0",
+    "requests>=2.33.0",
+    "httpx>=0.27.0",
     "tabulate>=0.9.0",
     "tqdm>=4.67.0",
+    "validators>=0.22.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -144,7 +154,10 @@ macos = [
     "pyobjc-framework-AppKit>=10.0",
     "pyobjc-core>=10.0"
 ]
-dev = ["pytest>=7.0", "pytest-mock>=3.0", "pytest-cov>=4.0", "pylint>=3.1.0"]
+dev = [
+    "pytest>=7.0", "pytest-mock>=3.0", "pytest-cov>=4.0", "pytest-benchmark>=5.0",
+    "pytest-asyncio>=0.23.0", "pylint>=3.1.0", "mypy>=1.0"
+]
 build = ["py2app>=0.28"]
 ```
 
@@ -166,6 +179,7 @@ tests/
 ├── test_async_site_checker.py   # Async I/O module tests
 ├── test_cli_integration.py      # CLI argument parsing and integration
 ├── test_common.py               # Common utilities tests
+├── test_config.py               # Config file loading tests
 ├── test_file_handler.py         # File input and validation tests
 ├── test_httpcheck.py            # Main script integration tests
 ├── test_init.py                 # Package initialization tests
@@ -179,7 +193,7 @@ tests/
 
 ### Test Coverage Status
 - **13 test modules** covering all functionality
-- **88% code coverage** (exceeding 70% target)
+- **90% code coverage** (exceeding 70% target)
 - **Mock-based testing** for reliable, fast execution
 - **Security validation tests** for injection protection
 
@@ -215,26 +229,27 @@ python3 httpcheck.py google.com  # Basic smoke test
 
 # During refactoring
 python3 -m pytest tests/ -v  # All tests pass
-python3 httpcheck.py -f @domains.txt  # Threading works
+python3 httpcheck.py -f @examples/domains.txt  # Threading works
 ```
 
 ## 🚀 Next Steps Priority (v1.5.0 Development)
 
 ### ✅ v1.4.x COMPLETED (through v1.4.3, March 2026)
-- ✅ **Full modular architecture** (11 modules)
-- ✅ **Comprehensive testing** (13 test modules, 88% coverage)
+- ✅ **Full modular architecture** (9 modules)
+- ✅ **Comprehensive testing** (11 test modules, 88% coverage)
 - ✅ **Enhanced security** (input validation, audit clean)
 - ✅ **New output formats** (JSON, CSV)
 - ✅ **Advanced request features** (custom headers, SSL control)
 - ✅ **Package installation** (`pip install -e .`)
 - ✅ **Repository organization** (docs/, examples/, tests/)
-- ✅ **Async I/O** (`async_site_checker.py` with httpx)
 - ✅ **Centralized logging** (`logger.py`)
 - ✅ **Modular CLI** (`cli.py` entry point)
 
-### 🎯 v1.5.0 Roadmap (Next 3 months)
-1. **Configuration File Support** - User-defined defaults (~/.httpcheck.toml)
-2. **Monitoring Mode** - Continuous site monitoring
-3. **Enhanced UX** - Colored output, progress improvements
+### 🎯 v1.5.0 Roadmap (not yet released)
+1. ✅ **Async I/O** - `async_site_checker.py` with httpx (`--async`)
+2. ✅ **Configuration File Support** - User-defined defaults (`~/.httpcheck.toml`, `./.httpcheck.toml`)
+3. ⏳ **Monitoring Mode** - Continuous site monitoring (in progress)
 
-Refer to `docs/development/DEVELOPMENT_PLAN.md` for detailed implementation plans.
+Colored output and other output improvements are planned for v1.6.0. See
+`ROADMAP.md` for the full roadmap and `docs/development/DEVELOPMENT_PLAN.md`
+for detailed implementation plans.
