@@ -49,16 +49,20 @@
 - **Multiple Output Formats**: JSON and CSV support
 - **Advanced Request Control**: Custom headers, SSL options
 
-🚀 **Next: v1.5.0 Development Focus**
-- **Async I/O**: 2-3x performance improvement for large site lists
-- **Experimental Async Flag**: Try `--async` to use the new httpx-based fast path
-- **Configuration Files**: User-defined defaults and settings
+🚀 **Next: v1.5.0 (target October 2026)**: done on `main`, not yet released
+- **Async I/O**: Try `--async` for the httpx-based concurrent path (aiming for
+  2-3x faster checks on large site lists; benchmark pending)
+- **Configuration Files**: User-defined defaults in `~/.httpcheck.toml` and
+  `./.httpcheck.toml`
+- **Python 3.10+**: v1.5.0 drops Python 3.9 support
+
+🔭 **Then: v1.6.0 (target Q1 2027)**
 - **Monitoring Mode**: Continuous site monitoring with notifications
 - **Enhanced UX**: Colored output and improved progress reporting
 
 See detailed plans in:
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - Executive overview and timeline
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Technical implementation guide
+- [DEVELOPMENT_PLAN.md](docs/development/DEVELOPMENT_PLAN.md) - Executive overview and timeline
+- [DEVELOPMENT.md](docs/development/DEVELOPMENT.md) - Technical implementation guide
 - [TODO.md](TODO.md) - Current prioritized task list
 - [ROADMAP.md](ROADMAP.md) - Long-term vision through v2.0.0
 

@@ -3,85 +3,76 @@
 ## Executive Summary
 
 This document outlines the development plan for httpcheck, tracking completed work and
-the active roadmap through v2.0.0.
+the active roadmap through v2.0.0. [ROADMAP.md](../../ROADMAP.md) is the canonical,
+prioritised feature list; this file summarises it.
 
-## Current State (v1.4.3 — Released)
+## Current State (`main`, 2026-10-10)
 
-- **Version**: 1.4.3
-- **Architecture**: Fully modular package (11 specialized modules)
-- **Dependencies**: requests, httpx, tabulate, tqdm, validators, tomli (pyproject.toml)
-- **Test Coverage**: 90%+ (exceeds 70% target); 387 tests, 1 skipped
+- **Released**: 1.4.3 (2026-03-09, PyPI)
+- **Unreleased on `main`**: async I/O (`--async`) and configuration files — shipping as
+  v1.5.0 (target October 2026)
+- **Architecture**: 11 specialized modules plus `__init__.py`
+- **Dependencies**: requests, httpx, tabulate, tqdm, validators, tomli on Python 3.10
+  (pyproject.toml)
+- **Tests**: 388 tests (387 passed, 1 skipped), 90% coverage (exceeds 70% target)
 - **Code Quality**: pylint 10.0/10 maintained
-- **Python Floor**: 3.10+
+- **Python Floor**: 3.10+ on `main` (1.4.3 still supports 3.9); CI tests 3.10–3.14
 - **Security**: pip-audit clean; no known vulnerabilities
 
 ## Completed Work
 
-### v1.4.0 — Modular Architecture
-- [x] Full package restructure: `httpcheck/` with 11 specialised modules
-- [x] `cli.py` — centralised argument parser and entry point
+Per release, as recorded in [CHANGELOG.md](../../CHANGELOG.md).
+
+### v1.4.0 — Modular Architecture (2025-01-16)
+- [x] 1,151-line monolith split into the `httpcheck/` package (8 modules incl. `__init__.py`)
 - [x] `common.py` — shared constants, types, utilities
-- [x] `tld_manager.py` — TLD validation, JSON-cached from publicsuffix.org
+- [x] `tld_manager.py` — TLD validation, JSON-cached from publicsuffix.org (replaced pickle)
 - [x] `file_handler.py` — file input with security validation
 - [x] `site_checker.py` — HTTP request handling and retry logic
-- [x] `async_site_checker.py` — async I/O via httpx
-- [x] `output_formatter.py` — table/JSON/CSV output
+- [x] `output_formatter.py` — table/JSON/CSV output (`--output json|csv`)
 - [x] `notification.py` — macOS/Linux system notifications
-- [x] `logger.py` — centralised structured logging
-- [x] `validation.py` — enhanced input validation and security
-- [x] `config.py` — TOML configuration file support
+- [x] `validation.py` — enhanced input validation, injection protection, DoS limits
+- [x] Custom HTTP headers (`-H`) and SSL verification control (`--no-verify-ssl`)
+- [x] 182 tests, 84% coverage
 
-### v1.4.1 — Security & Testing
-- [x] Replaced pickle with JSON for TLD cache (security fix)
-- [x] pip-audit clean
-- [x] Enhanced input validation and injection protection
-- [x] SSL certificate verification options
+### v1.4.1 — Security & CLI Module (2025-01-12)
+- [x] `requests` and `urllib3` security updates
+- [x] `cli.py` — centralised argument parser and entry point (replaces the subprocess call)
+- [x] mypy configuration in `pyproject.toml`
 
-### v1.4.2 — Output & Request Features
-- [x] JSON output format (`--output json`)
-- [x] CSV output format (`--output csv`)
-- [x] Custom HTTP headers (`-H` flag)
-- [x] Configurable retry delay (`--retry-delay`)
-- [x] SSL verification control (`--no-verify-ssl`)
+### v1.4.2 — Logging, Testing & Documentation (2026-01-08)
+- [x] `logger.py` — structured logging: `--debug`, `--log-file`, `--log-json`
+- [x] 297 tests, 88% coverage (CLI 94%); performance benchmark suite (18 tests)
+- [x] Sphinx documentation: installation, quickstart, usage, examples, API reference,
+  contributing
 
-### v1.4.3 — Observability & Quality
-- [x] Structured logging: `--debug`, `--log-file`, `--log-json`
-- [x] pytest-asyncio integration; async site checker tests
-- [x] Performance benchmark suite (18 tests)
-- [x] 387 tests, 90%+ coverage
-- [x] PyPI published via GitHub Actions OIDC trusted publishers
-- [x] Configuration file support (`~/.httpcheck.toml`)
+### v1.4.3 — PyPI Republish (2026-03-09)
+- [x] Republished to PyPI via GitHub Actions OIDC trusted publishing
+- [x] CI/CD fixes: manual dispatch support, scoped security scanning
+
+Also in v1.4.x: configurable retry delay (`--retry-delay`).
+
+### Unreleased on `main` — v1.5.0
+- [x] `async_site_checker.py` — async I/O via httpx (`--async`), with pytest-asyncio tests
+- [x] `config.py` — TOML configuration files (`~/.httpcheck.toml`, `./.httpcheck.toml`)
+- [x] Python 3.13 and 3.14 added; Python 3.9 dropped (`requires-python >=3.10`)
+- [ ] Benchmark async against v1.4.3, then release
 
 ## Active Roadmap
 
-### v1.5.0 — Monitoring & UX (Next Release)
+Summary of [ROADMAP.md](../../ROADMAP.md):
 
-#### Monitoring Mode
-- [ ] Continuous site monitoring with configurable intervals
-- [ ] Persistent failure state across runs
-- [ ] Alert thresholds (fail N times before notifying)
-
-#### Enhanced UX
-- [ ] Colorised terminal output (green/red/yellow per status class)
-- [ ] Improved progress reporting for large lists
-- [ ] `--summary-only` flag for batch runs
-
-#### Configuration Improvements
-- [ ] Profile support in config file (`[profiles.strict]`, etc.)
-- [ ] Environment variable overrides (`HTTPCHECK_TIMEOUT`, etc.)
-
-### v1.6.0 — Advanced Features
-
-- [ ] Rate limiting (`--rate-limit N` requests/second)
-- [ ] Content verification (check response body, not just status)
-- [ ] Export to SQLite for historical trending
-- [ ] Webhook notifications (POST result JSON to a URL)
-
-### v2.0.0 — Long-term Vision
-
-- [ ] Plugin/hook system for custom checks
-- [ ] Dashboard output (terminal UI)
-- [ ] Distributed checking across multiple nodes
+- **v1.5.0 — Async I/O & Configuration (target October 2026)**: both features are done;
+  remaining are the async benchmark and the release itself.
+- **v1.6.0 — Monitoring Mode & Enhanced Output (target Q1 2027)**: monitoring mode
+  (moved from v1.5.0, not started) — continuous checks with persisted state, alert
+  thresholds, webhook/email alerts, console dashboard; config profiles and env-var
+  overrides; colorised output, progress reporting, `--summary-only`; HTML/Markdown
+  reports; authentication; rate limiting; content verification.
+- **v1.7.0 — Integrations (target Q2 2027)**: Prometheus metrics, templated webhooks,
+  SQLite/PostgreSQL storage, Slack/Discord alerts.
+- **v2.0.0 — Next Generation Platform (2027)**: browser-based validation, plugin
+  architecture, distributed checking, enterprise features.
 
 ## Quality Standards
 

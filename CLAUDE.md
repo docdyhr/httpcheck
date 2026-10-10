@@ -9,7 +9,7 @@ features including threading, redirect handling, TLD validation, and macOS
 integration.
 
 - **Current Version**: 1.4.3 (RELEASED ✅)
-- **Target Version**: 1.5.0 (async I/O and config files merged on `main`, unreleased; monitoring mode in progress)
+- **Target Version**: 1.5.0 (async I/O and config files merged on `main`, release targeted October 2026; drops Python 3.9). Monitoring mode moved to v1.6.0 (Q1 2027)
 - **Architecture**: Fully modular (11 specialized modules)
 - **Code Quality**: Maintains pylint 10.0/10 score
 - **Test Coverage**: 90% (exceeding 70% target)
@@ -245,11 +245,14 @@ python3 httpcheck.py -f @examples/domains.txt  # Threading works
 - ✅ **Centralized logging** (`logger.py`)
 - ✅ **Modular CLI** (`cli.py` entry point)
 
-### 🎯 v1.5.0 Roadmap (not yet released)
+### 🎯 v1.5.0 Roadmap (target October 2026, not yet released)
 1. ✅ **Async I/O** - `async_site_checker.py` with httpx (`--async`)
 2. ✅ **Configuration File Support** - User-defined defaults (`~/.httpcheck.toml`, `./.httpcheck.toml`)
-3. ⏳ **Monitoring Mode** - Continuous site monitoring (in progress)
+3. ⏳ **Async benchmark** against v1.4.3, then release
 
-Colored output and other output improvements are planned for v1.6.0. See
-`ROADMAP.md` for the full roadmap and `docs/development/DEVELOPMENT_PLAN.md`
+### 🔭 v1.6.0 Roadmap (target Q1 2027)
+- ⏳ **Monitoring Mode** - Continuous site monitoring (moved from v1.5.0; not started)
+- Colored output and other output improvements
+
+See `ROADMAP.md` for the full roadmap and `docs/development/DEVELOPMENT_PLAN.md`
 for detailed implementation plans.

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration file support** (`~/.httpcheck.toml` and `./.httpcheck.toml`). User-defined defaults for timeout, retries, follow_redirects, output_format, verify_ssl, workers, retry_delay, max_redirects, and custom headers. Project-level config overrides user-level; CLI flags always take precedence.
 - `load_config()` and `DEFAULT_CONFIG` are now part of the public API (`from httpcheck import load_config`).
 - Conditional `tomli` dependency for Python 3.10 (Python 3.11+ uses the stdlib `tomllib`).
-- Python 3.13 added to the CI test matrix.
+- Python 3.13 and 3.14 added to the CI test matrix and package classifiers.
 - Experimental async mode via `--async` using httpx async client (mutually exclusive with `--fast`).
 - Async checker module with protocol-restricted redirects and shared connection limits.
 
@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Docs now advertise `--async` and Read the Docs badge; roadmap/TODO reflect v1.4.3 release and v1.5.0 async focus.
+- Roadmap: v1.5.0 now ships async I/O and configuration files (target October 2026); monitoring mode moves to v1.6.0 (target Q1 2027).
+
+### Removed
+- **Python 3.9 support**: `requires-python` is now `>=3.10` (Python 3.9 is end-of-life). pip on Python 3.9 will keep installing 1.4.3.
 
 ## [1.4.3] - 2026-03-09
 
