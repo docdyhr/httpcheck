@@ -3,15 +3,18 @@
 ## 🚀 PROJECT STATUS OVERVIEW
 
 **Current Version**: 1.4.3 (Released 2026-03-09 ✅)
-**Target Version**: 1.5.0 (Async Performance & Configuration)
+**Target Version**: 1.5.0 (Async I/O & Configuration, target October 2026)
 **Project Health**: ✅ Excellent
 
-- **Test Coverage**: 88% (Target: 70% ✅)
-- **CLI Coverage**: 94% ✅
+- **Test Coverage**: 90% (Target: 70% ✅)
+- **CLI Coverage**: 96% ✅
 - **Code Quality**: pylint 10.0/10 ✅
 - **Security**: No vulnerabilities (pip-audit clean) ✅
-- **Architecture**: Fully modularized (8 modules) ✅
-- **Release Status**: Production Ready (PyPI 1.4.3) ✅
+- **Architecture**: 11 specialized modules plus `__init__.py` ✅
+- **Release Status**: PyPI 1.4.3; async I/O and config files are merged on `main`, unreleased
+
+[ROADMAP.md](ROADMAP.md) is the canonical list of version targets and features;
+this file tracks the actionable tasks.
 
 ---
 
@@ -19,52 +22,58 @@
 
 ### Major Achievements
 
-- [x] **Architecture**: Complete modularization (1,151 → 807 lines, 8 modules)
-- [x] **Testing**: 182 tests with 84% coverage
-- [x] **Security**: Enterprise-grade input validation system
-- [x] **Features**: JSON/CSV output, custom headers, SSL control
-- [x] **Package**: Proper Python package with `pip install -e .`
+- [x] **Architecture**: Monolith split into the `httpcheck/` package in v1.4.0
+  (1,151 → 807 lines, 8 modules); `cli.py` (v1.4.1) and `logger.py` (v1.4.2) followed
+- [x] **Testing**: 182 tests / 84% coverage (v1.4.0) → 297 tests / 88% coverage,
+  CLI 94% (v1.4.2), plus 18 performance benchmarks
+- [x] **Security**: Enterprise-grade input validation system; TLD cache moved
+  from pickle to JSON
+- [x] **Features**: JSON/CSV output, custom headers, SSL control, retry delay,
+  structured logging (`--debug`, `--log-file`, `--log-json`)
+- [x] **Package**: Proper Python package, published to PyPI via GitHub Actions
+  trusted publishing
+- [x] **Documentation**: Sphinx docs (installation, quickstart, usage, examples,
+  API reference, contributing)
 - [x] **Compatibility**: 100% backward compatible
+
+### CI/CD Pipeline
+
+- [x] **GitHub Actions workflow** (`.github/workflows/ci.yml`) on push, PR and a
+  weekly schedule:
+  - pylint (must score 10.0) and pytest with coverage
+  - pip-audit, bandit and CodeQL security scans
+  - Test matrix: Python 3.10–3.14 on Ubuntu, macOS and Windows
+- [x] **Automated release process** - Tag-based releases to PyPI (`publish.yml`)
+- [x] **Dependency updates** - Dependabot, with patch bumps auto-merged
+  - _Release workflow docs: `docs/release_process.md`; Dependabot rules: `.github/dependabot.yml`._
 
 ---
 
-## 🎯 IMMEDIATE PRIORITIES (Next 2 Weeks)
+## 🎯 IMMEDIATE PRIORITIES
 
-### 1. Post-Release Tasks
+### 1. Ship v1.5.0 (async I/O + config files) — target October 2026
 
-- [ ] **Monitor v1.4.0 adoption** - Track GitHub issues and user feedback
-- [ ] **Update project website/docs** - Reflect new package structure
-- [ ] **Create migration guide** - For users wanting to use modular imports
-- [ ] **Performance baseline** - Benchmark current performance for v1.5.0
-  comparison
-  - _Use the ready-to-file issue descriptions in `docs/github_issue_drafts.md`
-    to open the GitHub tracking items for these tasks._
+- [ ] **Async benchmark** - Compare `--async` against v1.4.3 (target: ≥2× faster
+  for 100+ concurrent checks)
+- [ ] **Release** - Follow `docs/release_process.md`; CHANGELOG `[Unreleased]`
+  becomes `[1.5.0]`. Note: v1.5.0 drops Python 3.9 (`requires-python >=3.10`)
 
-### 2. CI/CD Pipeline Setup
+### 2. Start v1.6.0 monitoring mode — target Q1 2027
 
-- [x] **GitHub Actions workflow** - Automated testing on PR/push
+- [ ] **Design** - CLI shape, state storage and alerting for `httpcheck monitor`
+  (task list under v1.6.0 below)
 
-  ```yaml
-  # .github/workflows/test.yml
-  - Run pylint (must score 10.0)
-  - Run pytest with coverage (must exceed 70%)
-  - Run security audit (pip-audit)
-  - Test installation on Python 3.9, 3.10, 3.11, 3.12
-  ```
+### 3. Documentation
 
-- [x] **Automated release process** - Tag-based releases to PyPI
-- [x] **Dependency updates** - Dependabot configuration
-  - _Release workflow docs: `docs/release_process.md`; Dependabot rules: `.github/dependabot.yml`._
-
-### 3. Documentation Enhancement
-
-- [ ] **API documentation** - Document all public functions for library usage
-- [ ] **Examples directory expansion** - Add more real-world examples
+- [x] **API documentation** - `docs/api/` (Sphinx autodoc)
+- [x] **Real-world examples** - `docs/examples.rst` (15+ examples)
+- [ ] **Migration guide** - For users wanting to use modular imports
+  - _Draft issue text: `docs/github_issue_drafts.md` §3._
 - [ ] **Video tutorial** - 5-minute quickstart guide
 
 ---
 
-## 🚀 v1.5.0 DEVELOPMENT (Next 3 Months)
+## 🚀 v1.5.0 DEVELOPMENT — Async I/O & Configuration (target October 2026)
 
 ### ✅ Phase 1: Async I/O Implementation (COMPLETED)
 
@@ -84,15 +93,15 @@
 - [x] **Testing**
   - [x] Add async-specific test suite (`test_async_site_checker.py`)
 - [ ] **Benchmarking**
-  - [ ] Benchmark against v1.4.0 (target: 2-3x improvement)
+  - [ ] Benchmark against v1.4.3 (target: 2-3x improvement)
   - [ ] Test with 1000+ concurrent checks
   - [ ] Memory usage profiling
 
-### Phase 2: Configuration System (Month 2)
+### ✅ Phase 2: Configuration System (COMPLETED)
 
 **Goal**: User-friendly defaults and enterprise configuration
 
-- [ ] **Configuration File Support**
+- [x] **Configuration File Support** (`config.py`)
 
   ```toml
   # ~/.httpcheck.toml or ./.httpcheck.toml
@@ -113,14 +122,34 @@
   sound = "Ping"
   ```
 
-- [ ] **Implementation Tasks**
-  - [ ] Create `config.py` module
-  - [ ] Support TOML/YAML/JSON formats
-  - [ ] Implement config file discovery (home, cwd, env var)
-  - [ ] CLI overrides config file settings
-  - [ ] Add `httpcheck config` command to manage settings
+- [x] **Implementation Tasks**
+  - [x] Create `config.py` module
+  - [x] TOML format (stdlib `tomllib`; `tomli` on Python 3.10)
+  - [x] Config file discovery: home (`~/.httpcheck.toml`) and cwd (`./.httpcheck.toml`)
+  - [x] CLI overrides config file settings
+  - _Moved to v1.6.0: YAML/JSON formats, env-var discovery, `httpcheck config` command._
 
-### Phase 3: Monitoring Mode (Month 3)
+> Phase 3 (Monitoring Mode) moved to v1.6.0 on 2026-10-10 so the finished async
+> and config work can ship as v1.5.0.
+
+### 📊 v1.5.0 Success Metrics
+
+- [ ] **Async performance**: ≥2× faster for 100+ concurrent checks (stretch: 3×)
+- [ ] **Memory efficiency**: <100MB for 1000 concurrent checks
+- [ ] **Startup time**: <100ms with config file
+- [ ] **Response time**: P95 < 50ms for local cache hits
+- [ ] **Test coverage**: Maintain >80% (90% on `main`, 2026-10-10)
+- [ ] **Pylint score**: Maintain 10.0/10
+- [ ] **Documentation**: 100% public API documented
+- [x] **Examples**: 10+ real-world usage examples (`docs/examples.rst`)
+- [ ] **Config adoption**: 50% of users create config file
+- [ ] **Zero regressions**: All v1.4.x features work unchanged
+
+---
+
+## 🔭 v1.6.0 DEVELOPMENT — Monitoring Mode & Enhanced Output (target Q1 2027)
+
+### Monitoring Mode (moved from v1.5.0 — not started)
 
 **Goal**: Transform httpcheck into a lightweight monitoring solution
 
@@ -131,7 +160,7 @@
   ```
 
   - [ ] Continuous checking loop
-  - [ ] State tracking (status changes)
+  - [ ] State tracking (status changes), persisted across runs
   - [ ] Basic SQLite storage for history
   - [ ] Console dashboard view
 
@@ -139,37 +168,28 @@
   - [ ] Email notifications (SMTP)
   - [ ] Webhook support (POST to URL)
   - [ ] Desktop notifications enhancement
-  - [ ] Slack/Discord integration
+  - [ ] Alert thresholds (fail N times before notifying)
+  - _Slack/Discord delivery is a v1.7.0 Integrations item (see ROADMAP.md)._
+
+- **Success metrics**: monitor mode stable for 24h+ continuous runs; used in 5+
+  production environments
+
+### Configuration Improvements (moved from v1.5.0)
+
+- [ ] YAML/JSON config formats
+- [ ] Config file discovery via environment variable
+- [ ] `httpcheck config` command to manage settings
+- [ ] Config profiles (`[profiles.strict]`) and env-var overrides (`HTTPCHECK_TIMEOUT`)
+
+Colorized output, HTML/Markdown reports, authentication, content verification and
+the rest of v1.6.0 are listed in [ROADMAP.md](ROADMAP.md).
 
 ---
 
-## 📊 v1.5.0 SUCCESS METRICS
+## 🔮 FUTURE IDEAS (beyond v1.6.0)
 
-### Performance Targets
-
-- [ ] **Async performance**: 3x faster for 100+ concurrent checks
-- [ ] **Memory efficiency**: <100MB for 1000 concurrent checks
-- [ ] **Startup time**: <100ms with config file
-- [ ] **Response time**: P95 < 50ms for local cache hits
-
-### Quality Targets
-
-- [ ] **Test coverage**: Maintain >80%
-- [ ] **Pylint score**: Maintain 10.0/10
-- [ ] **Documentation**: 100% public API documented
-- [ ] **Examples**: 10+ real-world usage examples
-
-### User Experience
-
-- [ ] **Config adoption**: 50% of users create config file
-- [ ] **Monitor mode**: Used in 5+ production environments
-- [ ] **Zero regressions**: All v1.4.0 features work unchanged
-
----
-
-## 🔮 FUTURE ROADMAP (v1.6.0 and beyond)
-
-### v1.6.0 - Enhanced Monitoring (Q3 2025)
+Version placement and targets are canonical in [ROADMAP.md](ROADMAP.md)
+(v1.7.0 Integrations: Q2 2027; v2.0.0: 2027). This is the longer idea backlog.
 
 - [ ] **Advanced monitoring features**
   - Response time tracking and alerts
@@ -183,8 +203,6 @@
   - SLA reporting
   - Export to Prometheus/Grafana
 
-### v1.7.0 - Enterprise Features (Q4 2025)
-
 - [ ] **Multi-region monitoring**
   - Distributed checking from multiple locations
   - Consensus-based alerting
@@ -194,8 +212,6 @@
   - Custom validators
   - External notification providers
   - Authentication plugins (OAuth, API keys)
-
-### v2.0.0 - Next Generation (2026)
 
 - [ ] **Browser-based validation**
   - Headless browser support (Playwright)
@@ -215,22 +231,24 @@
 
 ### Code Quality Improvements
 
-- [ ] **Type hints**: Add comprehensive type annotations
+- [ ] **Type hints**: Add comprehensive type annotations (about half of the
+  functions in `httpcheck/` have return annotations)
 - [ ] **Docstrings**: Add examples to all public functions
 - [ ] **Error messages**: Standardize and improve clarity
-- [ ] **Logging**: Add debug logging throughout
+- [x] **Logging**: Debug logging throughout (`logger.py`, `--debug`, v1.4.2)
 
 ### Testing Enhancements
 
 - [ ] **Integration tests**: Real HTTP calls to test server
-- [ ] **Performance tests**: Regression testing for speed
-- [ ] **Cross-platform**: Automated Windows testing
+- [x] **Performance tests**: Regression testing for speed
+  (`tests/test_performance.py`, pytest-benchmark)
+- [x] **Cross-platform**: Automated Windows testing (CI matrix includes `windows-latest`)
 - [ ] **Fuzzing**: Security-focused input fuzzing
 
 ### Documentation
 
 - [ ] **Architecture guide**: Explain module interactions
-- [ ] **Contributing guide**: Help new contributors
+- [x] **Contributing guide**: Help new contributors (`docs/contributing.rst`)
 - [ ] **Troubleshooting guide**: Common issues and solutions
 - [ ] **Performance tuning**: Best practices for large deployments
 
@@ -238,17 +256,18 @@
 
 ## 📋 DEVELOPMENT NOTES
 
-### Current Architecture (v1.4.3)
+### Current Architecture (`main`)
 
 ``` diagram
 httpcheck/
 ├── __init__.py             # Package API
 ├── cli.py                  # Argument parser and entry point
 ├── common.py               # Shared utilities
+├── config.py               # TOML config file loading (unreleased, v1.5.0)
 ├── tld_manager.py          # TLD validation (Singleton)
 ├── file_handler.py         # File input processing
 ├── site_checker.py         # HTTP checking logic (threaded)
-├── async_site_checker.py   # Async I/O checks (httpx)
+├── async_site_checker.py   # Async I/O checks (httpx; unreleased, v1.5.0)
 ├── output_formatter.py     # Multiple output formats
 ├── notification.py         # System notifications
 ├── logger.py               # Centralized logging
@@ -276,27 +295,12 @@ httpcheck/
 
 ## 🎯 NEXT ACTIONS (Priority Order)
 
-### This Week
-
-1. **Setup GitHub Actions** - Automated testing pipeline
-2. **Create v1.5.0 branch** - Start async development
-3. **Benchmark v1.4.0** - Establish performance baseline
-
-### Next Week
-
-1. **Async proof-of-concept** - Basic aiohttp implementation
-2. **Config file design** - Finalize format and schema
-3. **Community feedback** - Gather v1.4.0 user experiences
-
-### This Month
-
-1. **Complete async core** - Full implementation with tests
-2. **Beta release v1.5.0-beta1** - Early adopter testing
-3. **Documentation update** - Async usage guide
+1. **Benchmark async vs v1.4.3** - The last open v1.5.0 task
+2. **Release v1.5.0** - Async I/O + config files (target October 2026)
+3. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
 
 ---
 
-**Last Updated**: January 2025
-**Maintainer Note**: v1.4.0 successfully delivered all planned features. Focus
-now shifts to performance (async) and usability (config files) improvements
-while maintaining our high quality standards.
+**Last Updated**: 2026-10-10
+**Maintainer Note**: v1.5.0 ships the finished async I/O and configuration work;
+monitoring mode moved to v1.6.0 so it no longer holds up the release.

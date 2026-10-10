@@ -1,18 +1,20 @@
 # httpcheck Development Roadmap
 
-**Status snapshot (2026-06-22)**
+**Status snapshot (2026-10-10)**
 - Current release: 1.4.3 (2026-03-09) ✅
-- v1.5.0: async I/O ✅, config ✅, monitoring ⏳ — release targeting July 2026
-- Test coverage: 88% | pylint: 10.0/10 | Security: clean
+- v1.5.0: async I/O ✅, config ✅ — release targeting October 2026
+- Monitoring mode moved from v1.5.0 to v1.6.0 (target Q1 2027); not started
+- Test coverage: 90% | pylint: 10.0/10 | Security: clean
 
 This roadmap tracks the development path for httpcheck. Completed versions are
 archived for reference; active development is at the top.
 
 ---
 
-## ⏳ Version 1.5.0 - Async Performance & Configuration (Target: July 2026)
+## ⏳ Version 1.5.0 - Async Performance & Configuration (Target: October 2026)
 
-**Focus**: Performance via async I/O, user-defined defaults, lightweight monitoring
+**Focus**: Performance via async I/O and user-defined defaults. Both are done on
+`main`; v1.5.0 drops Python 3.9 (`requires-python >=3.10`).
 
 ### ✅ Phase 1: Async I/O (COMPLETE)
 
@@ -29,26 +31,39 @@ archived for reference; active development is at the top.
 - [x] CLI flags override config file
 - [x] Sections: `[defaults]`, `[headers]`, `[notifications]`
 
-### ⏳ Phase 3: Monitoring Mode (IN PROGRESS)
-
-- [ ] `httpcheck monitor @sites.txt --interval 300 --alert-on-change`
-- [ ] Continuous check loop with state tracking
-- [ ] SQLite storage for check history
-- [ ] Console status dashboard
-- [ ] Webhook and email alert delivery
+> Phase 3 (Monitoring Mode) moved to v1.6.0 on 2026-10-10 so the finished async
+> and config work can ship. No monitoring code existed yet.
 
 ### 📊 v1.5.0 Success Metrics
 
 - [ ] Async mode ≥2× faster for 100+ concurrent checks
 - [ ] Config file adopted with zero regressions on existing CLI
-- [ ] Monitor mode stable for 24h+ continuous runs
-- [ ] Test coverage ≥80%, pylint 10.0/10
+- [x] Test coverage ≥80%, pylint 10.0/10 (90%, 10.0/10 on `main`, 2026-10-10)
 
 ---
 
-## 🔍 Version 1.6.0 - Enhanced Output & Request Features (Target: Q4 2026)
+## 🔍 Version 1.6.0 - Monitoring Mode & Enhanced Output (Target: Q1 2027)
 
-**Focus**: Richer output options, advanced request control, content verification
+**Focus**: Lightweight monitoring, richer output options, advanced request
+control, content verification
+
+### Monitoring Mode (headline — moved from v1.5.0, not started)
+
+- [ ] `httpcheck monitor @sites.txt --interval 300 --alert-on-change`
+- [ ] Continuous check loop with state tracking, persisted across runs
+- [ ] SQLite storage for check history
+- [ ] Console status dashboard
+- [ ] Alert thresholds (fail N times before notifying)
+- [ ] Webhook and email alert delivery
+
+### Configuration & UX (moved from v1.5.0 plans; priorities TBD)
+
+- [ ] Config profiles (`[profiles.strict]`) and env-var overrides (`HTTPCHECK_TIMEOUT`)
+- [ ] Config file discovery via environment variable
+- [ ] `httpcheck config` command to manage settings
+- [ ] YAML/JSON config formats
+- [ ] Improved progress reporting for large lists
+- [ ] `--summary-only` flag for batch runs
 
 ### Output & Reporting
 
@@ -82,6 +97,7 @@ archived for reference; active development is at the top.
 
 ### 📊 v1.6.0 Success Metrics
 
+- [ ] Monitor mode stable for 24h+ continuous runs
 - [ ] HTML/Markdown output usable in CI pipelines
 - [ ] Auth methods cover the top-3 enterprise patterns
 - [ ] Content verification with <50ms overhead per check
@@ -89,7 +105,7 @@ archived for reference; active development is at the top.
 
 ---
 
-## 🌐 Version 1.7.0 - Integrations (Target: Q1 2027)
+## 🌐 Version 1.7.0 - Integrations (Target: Q2 2027)
 
 **Focus**: Push data out to external systems; make httpcheck a data source
 
@@ -142,14 +158,15 @@ archived for reference; active development is at the top.
 
 All items delivered through v1.4.3 (2026-03-09):
 
-- [x] Full modularization: 1,151-line monolith → 11 focused modules
-- [x] 182 tests, 88% coverage (target was 70%)
+- [x] Full modularization: 1,151-line monolith → 8 modules in v1.4.0 (incl.
+  `__init__.py`); `cli.py` (v1.4.1) and `logger.py` (v1.4.2) followed
+- [x] 297 tests, 88% coverage at v1.4.2 (up from 182 / 84% in v1.4.0; target was 70%)
 - [x] Security: pickle → JSON for TLD cache; pip-audit clean
 - [x] Output formats: JSON, CSV, table
 - [x] Custom HTTP headers (`-H`), SSL control (`--no-verify-ssl`)
 - [x] Package installation via `pip install -e .`
 - [x] Centralized logging (`logger.py`), input validation module
-- [x] GitHub Actions CI: test matrix Python 3.9–3.14, Dependabot, auto-merge
+- [x] GitHub Actions CI: test matrix Python 3.9–3.12 on Ubuntu/macOS/Windows, Dependabot
 - [x] pylint 10.0/10 maintained throughout
 
 ---
@@ -175,7 +192,7 @@ All items delivered through v1.4.3 (2026-03-09):
 1. Feature branch from `main`
 2. Tests written first (TDD)
 3. Full suite green, pylint 10.0, pip-audit clean
-4. PR review → merge → semantic-release tag
+4. PR review → merge → annotated version tag (`docs/release_process.md`)
 5. PyPI publish via CI on tag push
 
 ### Roadmap Maintenance
@@ -185,7 +202,7 @@ quality and correctness take priority over dates.
 
 ---
 
-**Last Updated**: 2026-06-22
+**Last Updated**: 2026-10-10
 **Next Review**: after v1.5.0 release
 
 > Timelines are estimates. We ship when features are solid, not when the
