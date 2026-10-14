@@ -10,6 +10,7 @@ from httpcheck.common import VERSION, SiteStatus
 from httpcheck.site_checker import (
     _create_custom_headers,
     _handle_request_exception,
+    _hostname,
     _should_stop_redirect,
     check_site,
 )
@@ -708,3 +709,12 @@ class TestSiteCheckerHelpers:
         )
         assert result is not None
         assert "SSL verification disabled" in result.message
+
+
+@pytest.mark.parametrize(
+    ("site", "expected"),
+    [("https://example.com/path", "example.com"), ("example.com", "example.com")],
+)
+def test_hostname_falls_back_to_input_without_scheme(site, expected):
+    """A URL with no parseable hostname reports the input, never None."""
+    assert _hostname(site) == expected

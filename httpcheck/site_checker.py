@@ -106,6 +106,11 @@ def _track_redirect_chain(
         redirect_timing.append((response.url, response.status_code, initial_time))
 
 
+def _hostname(site: str) -> str:
+    """Return the URL's hostname, or the input itself if it has none."""
+    return urlparse(site).hostname or site
+
+
 def _handle_request_exception(
     e: Exception,
     attempt: int,
@@ -117,7 +122,7 @@ def _handle_request_exception(
 ) -> SiteStatus | None:
     """Handle request exceptions with retry logic."""
     if attempt == retries:
-        hostname = urlparse(site).hostname
+        hostname = _hostname(site)
         if isinstance(e, Timeout):
             return SiteStatus(hostname, "[timeout]", "Request timed out")
         if isinstance(e, RequestsConnectionError):
@@ -217,7 +222,7 @@ def check_site(
             response_time = (end_time - start_time).total_seconds()
 
             return SiteStatus(
-                domain=urlparse(site).hostname,
+                domain=_hostname(site),
                 status=str(response.status_code),
                 message=STATUS_CODES.get(str(response.status_code), "Unknown"),
                 redirect_chain=redirect_chain,
@@ -237,4 +242,4 @@ def check_site(
             if error_result:
                 return error_result
 
-    return SiteStatus(urlparse(site).hostname, "[unknown error]", "All retries failed")
+    return SiteStatus(_hostname(site), "[unknown error]", "All retries failed")

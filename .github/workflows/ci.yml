@@ -40,13 +40,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          pip install -e .
-          pip install pylint
+          pip install -e ".[dev]"
 
       - name: Run Pylint
         run: |
           # Exclude macOS-specific files and test files on Linux runners
           pylint --fail-under=10.0 $(git ls-files '*.py' | grep -v tests/ | grep -v -E '(httpcheck_menubar|macos_notifications|test_menubar)\.py$')
+
+      - name: Run mypy
+        run: mypy httpcheck
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}

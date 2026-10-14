@@ -10,7 +10,7 @@ import os
 import re
 from pathlib import Path
 from typing import Optional, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import ParseResult, urlparse, urlunparse
 
 
 class ValidationError(Exception):
@@ -145,7 +145,7 @@ class InputValidator:
 
         return url
 
-    def _parse_url(self, url: str):
+    def _parse_url(self, url: str) -> ParseResult:
         """Parse URL and validate scheme."""
         try:
             parsed = urlparse(url)
@@ -356,6 +356,7 @@ class InputValidator:
             raise ArgumentValidationError(f"{param_name} cannot be None")
 
         # Convert to appropriate type
+        numeric_value: Union[int, float]
         try:
             if param_type is int:
                 numeric_value = int(value)

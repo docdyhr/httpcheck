@@ -67,6 +67,9 @@ Config file defaults (v1.5.0, unreleased): `~/.httpcheck.toml` (user) and
 # Run pylint (MUST pass with score 10.0)
 pylint --fail-under=10.0 httpcheck.py httpcheck/*.py
 
+# Type check (MUST pass; CI runs it)
+mypy httpcheck
+
 # Run comprehensive test suite
 pytest tests/ --cov=httpcheck --cov-report=html --cov-fail-under=70
 
@@ -156,7 +159,8 @@ macos = [
 ]
 dev = [
     "pytest>=7.0", "pytest-mock>=3.0", "pytest-cov>=4.0", "pytest-benchmark>=5.0",
-    "pytest-asyncio>=0.23.0", "pylint>=3.1.0", "mypy>=1.0"
+    "pytest-asyncio>=0.23.0", "pylint>=3.1.0", "mypy==1.20.2",
+    "types-requests>=2.31.0", "types-tabulate>=0.9.0", "types-tqdm>=4.66.0", "tomli>=2.0.0"
 ]
 build = ["py2app>=0.28"]
 ```

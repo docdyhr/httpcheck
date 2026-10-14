@@ -210,6 +210,20 @@ class TestTLDManager(unittest.TestCase):
                 self.tld_manager.cache_file, "w", encoding="utf-8"
             )
 
+    def test_save_to_cache_without_update_time_writes_a_timestamp(self):
+        """With no update_time set, the save still writes an ISO timestamp."""
+        self.tld_manager.tlds = {"com"}
+        self.tld_manager.update_time = None
+
+        with (
+            patch("builtins.open", mock_open()),
+            patch("httpcheck.tld_manager.json.dump") as mock_dump,
+        ):
+            self.tld_manager._save_to_cache()
+
+        saved = mock_dump.call_args.args[0]
+        assert datetime.fromisoformat(saved["update_time"])
+
     def test_save_to_cache_os_error(self):
         """OSError during save is caught and does not propagate."""
         self.tld_manager.tlds = {"com"}

@@ -347,3 +347,14 @@ async def test_async_check_sites_shared_client_enforces_max_redirects(monkeypatc
     )
     assert results[0].status == "[connection error]"
     assert len(seen) == 4
+
+
+async def test_async_check_site_negative_retries_returns_unknown_error():
+    """retries < 0 makes no attempt and returns a status, as check_site does."""
+    handler, seen = _redirect_handler(hops=0)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await async_check_site(
+            "http://example.test/hop/0", retries=-1, client=client
+        )
+    assert result.status == "[unknown error]"
+    assert seen == []

@@ -146,7 +146,7 @@ class TLDManager:
         try:
             cache_data = {
                 "tlds": list(self.tlds),
-                "update_time": self.update_time.isoformat(),
+                "update_time": (self.update_time or datetime.now()).isoformat(),
             }
             with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, indent=2)
