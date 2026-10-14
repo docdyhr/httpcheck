@@ -195,14 +195,16 @@ def check_site(
             if follow_redirects in ("http-only", "https-only"):
                 redirect_chain: list = []
                 redirect_timing: list = []
-                session.get = _create_protocol_restricted_session(
+                # A local name, not session.get: rebinding the session method
+                # made each retry wrap the previous attempt's wrapper.
+                restricted_get = _create_protocol_restricted_session(
                     session,
                     follow_redirects,
                     max_redirects=max_redirects,
                     redirect_chain=redirect_chain,
                     redirect_timing=redirect_timing,
                 )
-                response = session.get(site, headers=custom_header, timeout=timeout)
+                response = restricted_get(site, headers=custom_header, timeout=timeout)
             else:
                 response, initial_time = _perform_request(
                     session, site, custom_header, timeout, allow_redirects

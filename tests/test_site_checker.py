@@ -142,6 +142,29 @@ class TestSiteChecker:
                 assert len(result.redirect_chain) == 1
                 assert result.redirect_chain[0] == ("http://example.com", 301)
 
+    @pytest.mark.parametrize("mode", ["http-only", "https-only"])
+    def test_check_site_protocol_restricted_retry_keeps_single_wrapper(self, mode):
+        """Regression: each retry re-wrapped session.get, passing allow_redirects twice."""
+        with patch("httpcheck.site_checker.requests.Session") as mock_session_class:
+            ok = Mock(
+                status_code=200,
+                is_redirect=False,
+                headers={},
+                url="https://example.com",
+            )
+            get = Mock(side_effect=[requests.ConnectionError("reset"), ok])
+            mock_session = Mock()
+            mock_session.get = get
+            mock_session_class.return_value = mock_session
+
+            result = check_site(
+                "https://example.com", follow_redirects=mode, retries=1, retry_delay=0
+            )
+
+        assert result.status == "200"
+        assert get.call_count == 2
+        assert all(c.kwargs["allow_redirects"] is False for c in get.call_args_list)
+
     def test_check_site_https_only_redirects(self):
         """Test site check with https-only redirect following."""
         with patch("httpcheck.site_checker.requests.Session") as mock_session_class:
