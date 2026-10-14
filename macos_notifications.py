@@ -6,8 +6,8 @@ Provides richer notifications with actions, sounds, and proper integration
 
 import logging
 import os
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable
 
 try:
     import objc
