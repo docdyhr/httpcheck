@@ -3,7 +3,6 @@
 import argparse
 import re
 from collections.abc import Iterator
-from typing import Optional
 
 import validators
 
@@ -146,7 +145,7 @@ class FileInputHandler:
                     f"Could not decode file {self.file_path}"
                 ) from e
 
-    def _process_line(self, line: str, line_num: int) -> Optional[str]:
+    def _process_line(self, line: str, line_num: int) -> str | None:
         """Process a single line from the input file with enhanced validation."""
         # Remove whitespace and BOM
         cleaned_line = self._clean_line(line)
@@ -165,7 +164,7 @@ class FileInputHandler:
         # Apply enhanced URL validation
         return self._validate_url(processed_line, line_num)
 
-    def _clean_line(self, line: str) -> Optional[str]:
+    def _clean_line(self, line: str) -> str | None:
         """Clean line by removing whitespace and BOM."""
         line = line.strip()
         if line.startswith("\ufeff"):
@@ -189,7 +188,7 @@ class FileInputHandler:
                 print(f"[-] Line {line_num}: Security violation detected, skipping")
             return False
 
-    def _handle_comments(self, line: str) -> Optional[str]:
+    def _handle_comments(self, line: str) -> str | None:
         """Handle comment markers and remove comments from line."""
         # Handle full line comments
         for marker in self.comment_markers:
@@ -224,7 +223,7 @@ class FileInputHandler:
         prefix = line[:pos].rstrip()
         return prefix.endswith(("http:", "https:", "ftp:"))
 
-    def _validate_url(self, line: str, line_num: int) -> Optional[str]:
+    def _validate_url(self, line: str, line_num: int) -> str | None:
         """Validate and return URL or None if invalid."""
         try:
             validated_url = self.validator.validate_url(line, auto_fix=True)
