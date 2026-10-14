@@ -56,7 +56,8 @@ this file tracks the actionable tasks.
 - [x] **Async benchmark** - Compare `--async` against v1.4.3 (target: ≥2× faster
   for 100+ concurrent checks). Done 2026-10-14: **not met** (0.98× at default
   workers); see `docs/development/ASYNC_BENCHMARK.md`
-- [ ] **Decide how `--async` ships** - options in `docs/development/ASYNC_BENCHMARK.md`
+- [x] **Decide how `--async` ships** - Decided 2026-10-14: ship as experimental with
+  no speed claim (option 1 in `docs/development/ASYNC_BENCHMARK.md`)
 - [ ] **Release** - Follow `docs/release_process.md`; CHANGELOG `[Unreleased]`
   becomes `[1.5.0]`. Note: v1.5.0 drops Python 3.9 (`requires-python >=3.10`)
 
@@ -302,10 +303,8 @@ httpcheck/
 
 ## 🎯 NEXT ACTIONS (Priority Order)
 
-1. **Decide how `--async` ships** - The 2026-10-14 benchmark found no async
-   speedup; options in `docs/development/ASYNC_BENCHMARK.md`
-2. **Release v1.5.0** - Async I/O + config files (target October 2026)
-3. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
+1. **Release v1.5.0** - Config files plus experimental async (target October 2026)
+2. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
 
 ---
 

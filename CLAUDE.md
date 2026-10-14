@@ -250,7 +250,8 @@ python3 httpcheck.py -f @examples/domains.txt  # Threading works
 2. ✅ **Configuration File Support** - User-defined defaults (`~/.httpcheck.toml`, `./.httpcheck.toml`)
 3. ✅ **Async benchmark** against v1.4.3 (2026-10-14): target not met, see
    `docs/development/ASYNC_BENCHMARK.md`
-4. ⏳ **Decide how `--async` ships**, then release
+4. ✅ **`--async` ships as experimental** with no speed claim (decided 2026-10-14)
+5. ⏳ **Release**
 
 ### 🔭 v1.6.0 Roadmap (target Q1 2027)
 - ⏳ **Monitoring Mode** - Continuous site monitoring (moved from v1.5.0; not started)

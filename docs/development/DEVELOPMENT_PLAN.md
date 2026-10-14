@@ -57,15 +57,16 @@ Also in v1.4.x: configurable retry delay (`--retry-delay`).
 - [x] `config.py` — TOML configuration files (`~/.httpcheck.toml`, `./.httpcheck.toml`)
 - [x] Python 3.13 and 3.14 added; Python 3.9 dropped (`requires-python >=3.10`)
 - [x] Benchmark async against v1.4.3: target not met ([results](ASYNC_BENCHMARK.md))
-- [ ] Decide how `--async` ships, then release
+- [x] `--async` ships as experimental, with no speed claim (decided 2026-10-14)
+- [ ] Release
 
 ## Active Roadmap
 
 Summary of [ROADMAP.md](../../ROADMAP.md):
 
 - **v1.5.0 — Async I/O & Configuration (target October 2026)**: both features are done;
-  the 2026-10-14 benchmark found no async speedup, so what remains is
-  deciding how `--async` ships, and the release itself.
+  the 2026-10-14 benchmark found no async speedup, so `--async` ships as
+  experimental with no speed claim. What remains is the release itself.
 - **v1.6.0 — Monitoring Mode & Enhanced Output (target Q1 2027)**: monitoring mode
   (moved from v1.5.0, not started) — continuous checks with persisted state, alert
   thresholds, webhook/email alerts, console dashboard; config profiles and env-var

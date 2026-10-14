@@ -140,7 +140,8 @@ urllib3, has no shared scheduler of that kind.
 
 ## Options for v1.5.0
 
-These are open for a decision. The benchmark doesn't choose between them.
+**Decision (2026-10-14): option 1.** `--async` ships as experimental; its `--help`
+text says it is not faster than `--fast`. Option 2 remains open for a later release.
 
 1. Ship `--async` as experimental, without a speed claim, and document that `-f
    --workers N` is the faster path today.

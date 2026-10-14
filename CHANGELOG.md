@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs now advertise `--async` and Read the Docs badge; roadmap/TODO reflect v1.4.3 release and v1.5.0 async focus.
 - Roadmap: v1.5.0 now ships async I/O and configuration files (target October 2026); monitoring mode moves to v1.6.0 (target Q1 2027).
 - README no longer claims a 2–3× speedup for `--async`; the benchmark found none.
+- `--async` help text marks it experimental and not faster than `--fast`; `--workers` help now says it applies to both modes.
 
 ### Removed
 - **Python 3.9 support**: `requires-python` is now `>=3.10` (Python 3.9 is end-of-life). pip on Python 3.9 will keep installing 1.4.3.
