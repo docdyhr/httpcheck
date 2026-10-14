@@ -132,14 +132,18 @@ async def async_check_site(
             headers=headers,
             timeout=timeout,
             follow_redirects=allow_redirects,
-            max_redirects=max_redirects,
         )
         elapsed = time.monotonic() - start
         return response, elapsed
 
+    # httpx sets max_redirects per client, not per request: a caller-supplied
+    # client keeps its own limit.
     owns_client = client is None
     active_client = client or httpx.AsyncClient(
-        verify=verify_ssl, limits=DEFAULT_LIMITS, headers=headers
+        verify=verify_ssl,
+        limits=DEFAULT_LIMITS,
+        headers=headers,
+        max_redirects=max_redirects,
     )
 
     try:
@@ -208,7 +212,10 @@ async def async_check_sites(
     sem = asyncio.Semaphore(concurrency)
     headers = _create_headers(custom_headers)
     async with httpx.AsyncClient(
-        verify=verify_ssl, limits=DEFAULT_LIMITS, headers=headers
+        verify=verify_ssl,
+        limits=DEFAULT_LIMITS,
+        headers=headers,
+        max_redirects=max_redirects,
     ) as client:
 
         async def worker(url: str) -> SiteStatus:
