@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TLDManager keeps singleton semantics while allowing cache-dir overrides and sturdier cache/local/network fallback.
 - CLI site processing honors explicit async/fast flags (guards against MagicMock truthiness in tests).
 - Async performance benchmark wraps coroutine in `asyncio.run`, removing unawaited coroutine warnings.
+- `--async` no longer crashes with `TypeError: AsyncClient.get() got an unexpected keyword argument 'max_redirects'` on every site when redirects are `always` or `never` (the default is `always`). `--max-redirects` is now applied to the async client, where httpx expects it.
 
 ### Changed
 - Docs now advertise `--async` and Read the Docs badge; roadmap/TODO reflect v1.4.3 release and v1.5.0 async focus.

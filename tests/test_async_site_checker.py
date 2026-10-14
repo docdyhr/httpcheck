@@ -1,3 +1,4 @@
+import functools
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -269,3 +270,80 @@ async def test_async_check_sites_concurrency_respected(mock_get):
     results = await async_check_sites(sites, concurrency=3)
     assert len(results) == 10
     assert all(r.status == "200" for r in results)
+
+
+# ------------------------------------------------------------------
+# Real httpx client over MockTransport. AsyncClient.get is not patched,
+# so every keyword argument is checked against httpx's real signature.
+# ------------------------------------------------------------------
+
+
+def _redirect_handler(hops: int):
+    """Return a handler where /hop/N redirects to /hop/N+1 until N == hops."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        n = int(request.url.path.rsplit("/", 1)[1])
+        if n < hops:
+            return httpx.Response(302, headers={"location": f"/hop/{n + 1}"})
+        return httpx.Response(200)
+
+    return handler, seen
+
+
+def _use_mock_transport(monkeypatch, handler):
+    """Route every AsyncClient the module creates through a MockTransport."""
+    monkeypatch.setattr(
+        "httpcheck.async_site_checker.httpx.AsyncClient",
+        functools.partial(httpx.AsyncClient, transport=httpx.MockTransport(handler)),
+    )
+
+
+@pytest.mark.parametrize("follow_redirects", ["always", "never"])
+async def test_async_check_site_real_client_accepts_get_kwargs(follow_redirects):
+    """Regression: max_redirects was passed to AsyncClient.get() -> TypeError."""
+    handler, _ = _redirect_handler(hops=0)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await async_check_site(
+            "http://example.test/hop/0",
+            follow_redirects=follow_redirects,
+            retries=0,
+            client=client,
+        )
+    assert result.status == "200"
+
+
+async def test_async_check_site_own_client_enforces_max_redirects(monkeypatch):
+    """The client async_check_site creates stops after max_redirects hops."""
+    handler, seen = _redirect_handler(hops=10)
+    _use_mock_transport(monkeypatch, handler)
+    result = await async_check_site(
+        "http://example.test/hop/0", max_redirects=3, retries=0, retry_delay=0
+    )
+    assert result.status == "[connection error]"
+    assert "redirects" in result.message
+    assert len(seen) == 4  # first request + 3 redirects
+
+
+async def test_async_check_sites_follows_redirects_within_limit(monkeypatch):
+    """A chain shorter than max_redirects is followed to the final 200."""
+    handler, seen = _redirect_handler(hops=2)
+    _use_mock_transport(monkeypatch, handler)
+    results = await async_check_sites(
+        ["http://example.test/hop/0"], max_redirects=3, retries=0, retry_delay=0
+    )
+    assert [r.status for r in results] == ["200"]
+    assert [code for _, code in results[0].redirect_chain] == [302, 302, 200]
+    assert seen == ["/hop/0", "/hop/1", "/hop/2"]
+
+
+async def test_async_check_sites_shared_client_enforces_max_redirects(monkeypatch):
+    """The shared client async_check_sites creates honours max_redirects."""
+    handler, seen = _redirect_handler(hops=10)
+    _use_mock_transport(monkeypatch, handler)
+    results = await async_check_sites(
+        ["http://example.test/hop/0"], max_redirects=3, retries=0, retry_delay=0
+    )
+    assert results[0].status == "[connection error]"
+    assert len(seen) == 4
