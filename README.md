@@ -50,8 +50,9 @@
 - **Advanced Request Control**: Custom headers, SSL options
 
 🚀 **Next: v1.5.0 (target October 2026)**: done on `main`, not yet released
-- **Async I/O**: Try `--async` for the httpx-based concurrent path (aiming for
-  2-3x faster checks on large site lists; benchmark pending)
+- **Async I/O** (experimental): `--async` uses an httpx-based concurrent path. In
+  the [benchmark against v1.4.3](docs/development/ASYNC_BENCHMARK.md) it is not
+  faster than `-f` at the same `--workers`; for speed, raise `-f --workers`
 - **Configuration Files**: User-defined defaults in `~/.httpcheck.toml` and
   `./.httpcheck.toml`
 - **Python 3.10+**: v1.5.0 drops Python 3.9 support
