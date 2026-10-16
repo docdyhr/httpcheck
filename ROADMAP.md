@@ -22,7 +22,9 @@ archived for reference; active development is at the top.
 - [x] Create `async_site_checker.py` with connection pooling
 - [x] Synchronous compatibility wrapper preserved
 - [x] Async test suite (`test_async_site_checker.py`)
-- [ ] Benchmark against v1.4.3 (target: 2–3× improvement for 100+ checks)
+- [x] Benchmark against v1.4.3 (target: 2–3× improvement for 100+ checks): **not met**,
+  0.98× at default workers and slower than `-f` above ~50 workers; see
+  [ASYNC_BENCHMARK.md](docs/development/ASYNC_BENCHMARK.md)
 
 ### ✅ Phase 2: Configuration File Support (COMPLETE)
 
@@ -36,7 +38,7 @@ archived for reference; active development is at the top.
 
 ### 📊 v1.5.0 Success Metrics
 
-- [ ] Async mode ≥2× faster for 100+ concurrent checks
+- [ ] Async mode ≥2× faster for 100+ concurrent checks (not met in the 2026-10-14 benchmark)
 - [ ] Config file adopted with zero regressions on existing CLI
 - [x] Test coverage ≥80%, pylint 10.0/10 (90%, 10.0/10 on `main`, 2026-10-10)
 

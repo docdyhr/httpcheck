@@ -53,8 +53,11 @@ this file tracks the actionable tasks.
 
 ### 1. Ship v1.5.0 (async I/O + config files) — target October 2026
 
-- [ ] **Async benchmark** - Compare `--async` against v1.4.3 (target: ≥2× faster
-  for 100+ concurrent checks)
+- [x] **Async benchmark** - Compare `--async` against v1.4.3 (target: ≥2× faster
+  for 100+ concurrent checks). Done 2026-10-14: **not met** (0.98× at default
+  workers); see `docs/development/ASYNC_BENCHMARK.md`
+- [x] **Decide how `--async` ships** - Decided 2026-10-14: ship as experimental with
+  no speed claim (option 1 in `docs/development/ASYNC_BENCHMARK.md`)
 - [ ] **Release** - Follow `docs/release_process.md`; CHANGELOG `[Unreleased]`
   becomes `[1.5.0]`. Note: v1.5.0 drops Python 3.9 (`requires-python >=3.10`)
 
@@ -93,9 +96,11 @@ this file tracks the actionable tasks.
 - [x] **Testing**
   - [x] Add async-specific test suite (`test_async_site_checker.py`)
 - [ ] **Benchmarking**
-  - [ ] Benchmark against v1.4.3 (target: 2-3x improvement)
-  - [ ] Test with 1000+ concurrent checks
-  - [ ] Memory usage profiling
+  - [x] Benchmark against v1.4.3 (target: 2-3x improvement): not met, see
+    `docs/development/ASYNC_BENCHMARK.md`
+  - [x] Test with 1000+ concurrent checks: `--async` 9.80 s vs `-f` 0.88 s at
+    `--workers 1000` (CPU-bound in httpcore's pool scheduler)
+  - [x] Memory usage profiling: peak RSS 43–76 MB in every mode up to 1000 workers
 
 ### ✅ Phase 2: Configuration System (COMPLETED)
 
@@ -134,9 +139,12 @@ this file tracks the actionable tasks.
 
 ### 📊 v1.5.0 Success Metrics
 
-- [ ] **Async performance**: ≥2× faster for 100+ concurrent checks (stretch: 3×)
-- [ ] **Memory efficiency**: <100MB for 1000 concurrent checks
-- [ ] **Startup time**: <100ms with config file
+- [ ] **Async performance**: ≥2× faster for 100+ concurrent checks (stretch: 3×) —
+  not met (benchmark 2026-10-14)
+- [x] **Memory efficiency**: <100MB for 1000 concurrent checks (64 MB `--async`,
+  73–76 MB `-f`)
+- [ ] **Startup time**: <100ms with config file (`--version` measured 126 ms on
+  `main`, 112 ms on v1.4.3, 2026-10-14)
 - [ ] **Response time**: P95 < 50ms for local cache hits
 - [ ] **Test coverage**: Maintain >80% (90% on `main`, 2026-10-10)
 - [ ] **Pylint score**: Maintain 10.0/10
@@ -295,9 +303,8 @@ httpcheck/
 
 ## 🎯 NEXT ACTIONS (Priority Order)
 
-1. **Benchmark async vs v1.4.3** - The last open v1.5.0 task
-2. **Release v1.5.0** - Async I/O + config files (target October 2026)
-3. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
+1. **Release v1.5.0** - Config files plus experimental async (target October 2026)
+2. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
 
 ---
 

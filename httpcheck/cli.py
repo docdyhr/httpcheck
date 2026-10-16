@@ -127,13 +127,14 @@ def _add_request_arguments(parser):
         "--workers",
         type=int,
         default=10,
-        help="number of concurrent workers for fast mode",
+        help="number of concurrent workers for --fast and --async",
     )
     parser.add_argument(
         "--async",
         dest="async_mode",
         action="store_true",
-        help="use async HTTP client (httpx) for concurrent checks",
+        help="experimental: concurrent checks with the async httpx client "
+        "(not faster than --fast at the same --workers)",
     )
     parser.add_argument(
         "--retry-delay",

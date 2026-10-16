@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python 3.13 and 3.14 added to the CI test matrix and package classifiers.
 - Experimental async mode via `--async` using httpx async client (mutually exclusive with `--fast`).
 - Async checker module with protocol-restricted redirects and shared connection limits.
+- `benchmarks/benchmark_async.py`: reproducible benchmark of `--async` against a baseline release on a local delay server. Results in `docs/development/ASYNC_BENCHMARK.md`: no speedup over `-f` at equal `--workers`.
 
 ### Fixed
 - TLDManager keeps singleton semantics while allowing cache-dir overrides and sturdier cache/local/network fallback.
@@ -28,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pre-commit: pyupgrade v3.16.0 → v3.22.0, because v3.16.0 crashes on Python 3.14 (`TypeError: cannot use a bytes pattern on a string-like object`) for any file starting with a comment, such as `httpcheck.py`. Its target is now `--py310-plus` to match `requires-python`, so annotations use `X | None` and `A | B` instead of `Optional`/`Union`.
 - Docs now advertise `--async` and Read the Docs badge; roadmap/TODO reflect v1.4.3 release and v1.5.0 async focus.
 - Roadmap: v1.5.0 now ships async I/O and configuration files (target October 2026); monitoring mode moves to v1.6.0 (target Q1 2027).
+- README no longer claims a 2–3× speedup for `--async`; the benchmark found none.
+- `--async` help text marks it experimental and not faster than `--fast`; `--workers` help now says it applies to both modes.
 
 ### Removed
 - **Python 3.9 support**: `requires-python` is now `>=3.10` (Python 3.9 is end-of-life). pip on Python 3.9 will keep installing 1.4.3.

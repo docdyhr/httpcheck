@@ -100,7 +100,7 @@ httpcheck/
 ```
 httpcheck/
 ├── httpcheck/           # Main package source code
-├── tests/              # Comprehensive test suite (388 tests)
+├── tests/              # Comprehensive test suite (393 tests)
 ├── examples/           # Example configuration and domain files
 ├── docs/               # Documentation
 │   ├── development/    # Development guides and plans
@@ -252,7 +252,10 @@ python3 httpcheck.py -f @examples/domains.txt  # Threading works
 ### 🎯 v1.5.0 Roadmap (target October 2026, not yet released)
 1. ✅ **Async I/O** - `async_site_checker.py` with httpx (`--async`)
 2. ✅ **Configuration File Support** - User-defined defaults (`~/.httpcheck.toml`, `./.httpcheck.toml`)
-3. ⏳ **Async benchmark** against v1.4.3, then release
+3. ✅ **Async benchmark** against v1.4.3 (2026-10-14): target not met, see
+   `docs/development/ASYNC_BENCHMARK.md`
+4. ✅ **`--async` ships as experimental** with no speed claim (decided 2026-10-14)
+5. ⏳ **Release**
 
 ### 🔭 v1.6.0 Roadmap (target Q1 2027)
 - ⏳ **Monitoring Mode** - Continuous site monitoring (moved from v1.5.0; not started)
