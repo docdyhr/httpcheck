@@ -90,7 +90,7 @@ class SiteStatus(NamedTuple):
     def final_url(self) -> str:
         """Return the final URL after redirects, or construct from domain."""
         if self.redirect_chain:
-            return self.redirect_chain[-1][0]
+            return str(self.redirect_chain[-1][0])
         # Construct URL from domain (prefer HTTPS)
         if not self.domain.startswith(("http://", "https://")):
             return f"https://{self.domain}"

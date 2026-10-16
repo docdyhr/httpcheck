@@ -9,8 +9,7 @@ import ipaddress
 import os
 import re
 from pathlib import Path
-from typing import Optional, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import ParseResult, urlparse, urlunparse
 
 
 class ValidationError(Exception):
@@ -145,7 +144,7 @@ class InputValidator:
 
         return url
 
-    def _parse_url(self, url: str):
+    def _parse_url(self, url: str) -> ParseResult:
         """Parse URL and validate scheme."""
         try:
             parsed = urlparse(url)
@@ -284,7 +283,7 @@ class InputValidator:
         return valid_lines
 
     def validate_http_headers(
-        self, headers: Union[dict[str, str], list[str]]
+        self, headers: dict[str, str] | list[str]
     ) -> dict[str, str]:
         """Validate HTTP headers.
 
@@ -330,13 +329,13 @@ class InputValidator:
 
     def validate_numeric_parameter(
         self,
-        value: Union[str, int, float],
+        value: str | int | float,
         *,
         param_name: str,
-        min_val: Optional[float] = None,
-        max_val: Optional[float] = None,
+        min_val: float | None = None,
+        max_val: float | None = None,
         param_type: type = float,
-    ) -> Union[int, float]:
+    ) -> int | float:
         """Validate numeric parameters.
 
         Args:
@@ -356,6 +355,7 @@ class InputValidator:
             raise ArgumentValidationError(f"{param_name} cannot be None")
 
         # Convert to appropriate type
+        numeric_value: int | float
         try:
             if param_type is int:
                 numeric_value = int(value)
@@ -377,20 +377,20 @@ class InputValidator:
 
         return numeric_value
 
-    def validate_timeout(self, timeout: Union[str, int, float]) -> float:
+    def validate_timeout(self, timeout: str | int | float) -> float:
         """Validate timeout parameter."""
         return self.validate_numeric_parameter(
             timeout, param_name="timeout", min_val=0.1, max_val=3600.0, param_type=float
         )
 
-    def validate_retries(self, retries: Union[str, int]) -> int:
+    def validate_retries(self, retries: str | int) -> int:
         """Validate retries parameter."""
         result = self.validate_numeric_parameter(
             retries, param_name="retries", min_val=0, max_val=10, param_type=int
         )
         return int(result)
 
-    def validate_workers(self, workers: Union[str, int]) -> int:
+    def validate_workers(self, workers: str | int) -> int:
         """Validate workers parameter."""
         result = self.validate_numeric_parameter(
             workers, param_name="workers", min_val=1, max_val=100, param_type=int
@@ -525,7 +525,7 @@ def validate_file_path(file_path: str) -> None:
     validator.validate_file_input(file_path)
 
 
-def parse_custom_headers(headers_list: Optional[list[str]]) -> Optional[dict[str, str]]:
+def parse_custom_headers(headers_list: list[str] | None) -> dict[str, str] | None:
     """Parse and validate custom headers - enhanced version."""
     if not headers_list:
         return None

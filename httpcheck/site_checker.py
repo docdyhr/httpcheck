@@ -106,6 +106,11 @@ def _track_redirect_chain(
         redirect_timing.append((response.url, response.status_code, initial_time))
 
 
+def _hostname(site: str) -> str:
+    """Return the URL's hostname, or the input itself if it has none."""
+    return urlparse(site).hostname or site
+
+
 def _handle_request_exception(
     e: Exception,
     attempt: int,
@@ -117,7 +122,7 @@ def _handle_request_exception(
 ) -> SiteStatus | None:
     """Handle request exceptions with retry logic."""
     if attempt == retries:
-        hostname = urlparse(site).hostname
+        hostname = _hostname(site)
         if isinstance(e, Timeout):
             return SiteStatus(hostname, "[timeout]", "Request timed out")
         if isinstance(e, RequestsConnectionError):
@@ -195,14 +200,16 @@ def check_site(
             if follow_redirects in ("http-only", "https-only"):
                 redirect_chain: list = []
                 redirect_timing: list = []
-                session.get = _create_protocol_restricted_session(
+                # A local name, not session.get: rebinding the session method
+                # made each retry wrap the previous attempt's wrapper.
+                restricted_get = _create_protocol_restricted_session(
                     session,
                     follow_redirects,
                     max_redirects=max_redirects,
                     redirect_chain=redirect_chain,
                     redirect_timing=redirect_timing,
                 )
-                response = session.get(site, headers=custom_header, timeout=timeout)
+                response = restricted_get(site, headers=custom_header, timeout=timeout)
             else:
                 response, initial_time = _perform_request(
                     session, site, custom_header, timeout, allow_redirects
@@ -215,7 +222,7 @@ def check_site(
             response_time = (end_time - start_time).total_seconds()
 
             return SiteStatus(
-                domain=urlparse(site).hostname,
+                domain=_hostname(site),
                 status=str(response.status_code),
                 message=STATUS_CODES.get(str(response.status_code), "Unknown"),
                 redirect_chain=redirect_chain,
@@ -235,4 +242,4 @@ def check_site(
             if error_result:
                 return error_result
 
-    return SiteStatus(urlparse(site).hostname, "[unknown error]", "All retries failed")
+    return SiteStatus(_hostname(site), "[unknown error]", "All retries failed")

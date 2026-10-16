@@ -12,7 +12,6 @@ import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import rumps  # pylint: disable=import-error
@@ -31,7 +30,7 @@ class HTTPCheckApp(rumps.App):
         # Initialize state
         self.sites: list[str] = []
         self.failed_sites: set[str] = set()
-        self.last_check_time: Optional[datetime] = None
+        self.last_check_time: datetime | None = None
         self.checking = False
         self.check_interval = 900  # 15 minutes default
         self.timer = None

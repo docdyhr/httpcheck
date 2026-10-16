@@ -20,8 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI site processing honors explicit async/fast flags (guards against MagicMock truthiness in tests).
 - Async performance benchmark wraps coroutine in `asyncio.run`, removing unawaited coroutine warnings.
 - `--async` no longer crashes with `TypeError: AsyncClient.get() got an unexpected keyword argument 'max_redirects'` on every site when redirects are `always` or `never` (the default is `always`). `--max-redirects` is now applied to the async client, where httpx expects it.
+- With `--follow-redirects http-only` or `https-only`, a retry no longer fails with `TypeError: … got multiple values for keyword argument 'allow_redirects'`. Each attempt wrapped the previous attempt's wrapper. In 1.4.3 the CLI reported the site as failed without retrying; on `main` the narrower exception handling made it crash.
 
 ### Changed
+- CI runs `mypy httpcheck` in the lint job, which now installs the `dev` extras. The `dev` extras pin `mypy==1.20.2` and add `types-requests`, `types-tabulate`, `types-tqdm` and `tomli` (so mypy can check the Python 3.10 import path). mypy would have caught both of the crash fixes above.
+- Typing fixes from mypy: a site with no parseable hostname now reports the input as its domain instead of `None`; `async_check_site` returns an `[unknown error]` status instead of `None` when `retries < 0`, matching `check_site`; the TLD cache save no longer fails when no update time is set.
+- pre-commit: pyupgrade v3.16.0 → v3.22.0, because v3.16.0 crashes on Python 3.14 (`TypeError: cannot use a bytes pattern on a string-like object`) for any file starting with a comment, such as `httpcheck.py`. Its target is now `--py310-plus` to match `requires-python`, so annotations use `X | None` and `A | B` instead of `Optional`/`Union`.
 - Docs now advertise `--async` and Read the Docs badge; roadmap/TODO reflect v1.4.3 release and v1.5.0 async focus.
 - Roadmap: v1.5.0 now ships async I/O and configuration files (target October 2026); monitoring mode moves to v1.6.0 (target Q1 2027).
 

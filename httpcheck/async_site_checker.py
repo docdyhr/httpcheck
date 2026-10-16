@@ -183,14 +183,17 @@ async def async_check_site(
                         else "[connection error]"
                     )
                     domain = site
-                    try:
-                        req = exc.request  # type: ignore[attr-defined]
-                        domain = _extract_domain(getattr(req, "url", site), site)
-                    except (AttributeError, RuntimeError):
-                        pass
+                    if isinstance(exc, httpx.HTTPError):
+                        try:
+                            # .request raises RuntimeError when it was never set.
+                            domain = _extract_domain(exc.request.url, site)
+                        except RuntimeError:
+                            pass
                     return SiteStatus(domain, status, str(exc))
                 if retry_delay > 0:
                     await asyncio.sleep(retry_delay)
+        # Only reached when retries < 0, as in the sync check_site.
+        return SiteStatus(site, "[unknown error]", "All retries failed")
     finally:
         if owns_client:
             await active_client.aclose()

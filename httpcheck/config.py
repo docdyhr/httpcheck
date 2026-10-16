@@ -6,13 +6,14 @@ Project-level config (./.httpcheck.toml) takes precedence over user-level
 """
 
 import pathlib
+import sys
 import warnings
 from typing import Any
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
+else:  # Python 3.10
+    import tomli as tomllib
 
 _CONFIG_FILENAME = ".httpcheck.toml"
 

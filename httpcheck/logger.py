@@ -7,16 +7,15 @@ integration with log aggregation systems.
 
 import logging
 import sys
-from typing import Optional
 
 # Global logger instance
-_logger: Optional[logging.Logger] = None
+_logger: logging.Logger | None = None
 
 
 def setup_logger(
     name: str = "httpcheck",
     level: int = logging.INFO,
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
     json_format: bool = False,
     quiet: bool = False,
 ) -> logging.Logger:

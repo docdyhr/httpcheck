@@ -632,7 +632,7 @@ def main():
     total_sites = len(options.site)
     successful = 0
     failures = 0
-    failed_sites = []
+    failed_sites: list[str] = []
 
     logger.debug("Starting httpcheck with %d sites", total_sites)
 
