@@ -264,12 +264,9 @@ twine upload dist/httpcheck-1.4.2*
 
 ### Option 3: GitHub Actions (CI/CD)
 
-For automated releases, store tokens as GitHub Secrets:
-1. Go to: https://github.com/docdyhr/httpcheck/settings/secrets/actions
-2. Add secret: `PYPI_API_TOKEN`
-3. Value: Your production PyPI token
-
-Update `.github/workflows/release.yml` to use it.
+Publishing is automated by `.github/workflows/publish.yml`, which uses PyPI
+trusted publishing (OIDC) and needs no API token secret. Pushing a `vX.Y.Z` tag
+starts it. See [release_process.md](release_process.md).
 
 ---
 

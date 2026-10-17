@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Release docs: `docs/release_process.md` describes the release-PR flow and that pushing a version tag publishes to PyPI immediately; `docs/PYPI_PUBLICATION_GUIDE.md` no longer points at a non-existent `release.yml` or a token secret; the Sphinx changelog now covers 1.4.3 and 1.5.0.
+
 ## [1.5.0] - 2026-10-17
 
 ### Added

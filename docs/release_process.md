@@ -1,38 +1,66 @@
 # Release Process
 
-The automated workflow in `.github/workflows/release.yml` publishes tagged
-versions to PyPI via trusted publishing. Use this checklist for every release.
+Tagged versions are published to PyPI by `.github/workflows/publish.yml`
+("Publish to PyPI") using trusted publishing (OIDC). **Pushing a `vX.Y.Z` tag
+starts the upload immediately.** The `pypi` environment has no approval gate and
+a PyPI version can never be re-uploaded, so everything is verified before the
+tag is pushed. Use this checklist for every release.
 
-## 1. Prepare the Release
+## 1. Prepare the Release (release PR)
 
-1. Update `pyproject.toml` and `httpcheck/common.py` with the new version.
-2. Document the changes in `CHANGELOG.md` and ensure README/docs reflect new
-   features or breaking changes.
-3. Run the full quality gate locally:
+1. Create `release/vX.Y.Z` from an up-to-date `main`.
+2. Bump the version everywhere it lives. Search for the old value instead of
+   trusting a list:
+   ```bash
+   grep -rnF "OLD_VERSION" . --exclude-dir=.git --exclude-dir=.venv --exclude=CHANGELOG.md
+   ```
+   The sites that must change are `pyproject.toml`, `httpcheck/__init__.py`,
+   `httpcheck/common.py` (`httpcheck --version` prints this one), the `Version:`
+   line in the `httpcheck/cli.py` docstring, `docs/conf.py` (`version` and
+   `release`) and `tests/test_init.py`. Leave historical mentions (benchmark
+   baselines, past releases) alone.
+3. Move `[Unreleased]` in `CHANGELOG.md` to `[X.Y.Z] - YYYY-MM-DD`, add the entry
+   to `docs/changelog.rst`, and update README, ROADMAP, TODO and CLAUDE.md wherever
+   they say "current", "unreleased" or "target".
+4. Run the quality gate locally:
    ```bash
    pip install -e ".[dev]"
-   pip install pip-audit
    pytest
-   pip-audit
+   pylint --fail-under=10.0 httpcheck.py httpcheck/*.py
+   mypy httpcheck
    ```
-4. Verify CI is green on the target branch before tagging.
+   `pip-audit` runs in CI (test matrix and Security Scanning jobs); check it on
+   the PR.
+5. Open a PR titled `chore(release): vX.Y.Z` against `main`, wait for every
+   required check, then merge. Never push the release commit to `main` directly.
 
-## 2. Tag the Release
+## 2. Tag the Release (this publishes)
 
-1. Create an annotated tag that matches `vX.Y.Z`.
+1. Update `main` and create an annotated tag on the **merge commit** of the
+   release PR:
    ```bash
-   git tag -a v1.5.0 -m "Release v1.5.0"
-   git push origin v1.5.0
+   git checkout main && git pull --ff-only origin main
+   git tag -a vX.Y.Z -m "Release vX.Y.Z" <merge-commit-sha>
    ```
-2. The `Publish Release` workflow builds the wheel+sdist and publishes to PyPI
-   using OpenID Connect; no secrets are required once the PyPI project trusts
-   `docdyhr/httpcheck`.
+2. Before pushing, check the version at the tagged commit in `pyproject.toml`,
+   `httpcheck/__init__.py` and `httpcheck/common.py`, for example
+   `git show vX.Y.Z:pyproject.toml | grep '^version'`.
+3. Push only the tag: `git push origin vX.Y.Z`. The workflow builds the wheel and
+   sdist, runs `twine check` and uploads via OpenID Connect; no secrets are
+   needed while PyPI trusts `docdyhr/httpcheck`.
+4. Watch the run (`gh run watch`) and confirm the new version on
+   https://pypi.org/project/httpcheck/.
+
+Do not push old or ad-hoc tags: any `v*.*.*` tag starts the publish workflow.
 
 ## 3. Post-Release Tasks
 
-1. Create a GitHub Release via the tag, including highlights and upgrade notes.
-2. Share the release announcement and link to any migration guide updates.
-3. Update `ROADMAP.md`/`TODO.md` to reflect completed work and next milestones.
+1. Create a GitHub Release from the tag, using the CHANGELOG section as notes:
+   `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file <notes.md>`.
+2. Smoke-test the published package in a throwaway virtualenv:
+   `pip install httpcheck==X.Y.Z && httpcheck --version`.
+3. Share the release announcement and link to any migration guide updates.
+4. Delete the merged release branch and run `git fetch --prune`.
 
-> Tip: protect `main`/`master` so only branches that pass the updated CI checks
-> can be merged; this keeps release tags reproducible.
+> Tip: protect `main` so only branches that pass the required CI checks can be
+> merged; this keeps release tags reproducible.
