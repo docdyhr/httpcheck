@@ -15,8 +15,8 @@ project = "httpcheck"
 copyright = "2026, Thomas Juul Dyhr"  # pylint: disable=redefined-builtin
 author = "Thomas Juul Dyhr"
 
-version = "1.4.3"
-release = "1.4.3"
+version = "1.5.0"
+release = "1.5.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

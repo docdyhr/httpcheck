@@ -8,8 +8,8 @@ This file provides comprehensive guidance for AI assistants working with the htt
 features including threading, redirect handling, TLD validation, and macOS
 integration.
 
-- **Current Version**: 1.4.3 (RELEASED ✅)
-- **Target Version**: 1.5.0 (async I/O and config files merged on `main`, release targeted October 2026; drops Python 3.9). Monitoring mode moved to v1.6.0 (Q1 2027)
+- **Current Version**: 1.5.0 (RELEASED ✅; async I/O and config files; drops Python 3.9)
+- **Next Version**: 1.6.0 (monitoring mode, target Q1 2027; not started)
 - **Architecture**: Fully modular (11 specialized modules)
 - **Code Quality**: Maintains pylint 10.0/10 score
 - **Test Coverage**: 90% (exceeding 70% target)
@@ -52,14 +52,14 @@ httpcheck --output csv @examples/domains.txt
 # Custom headers and SSL options
 httpcheck -H "User-Agent: MyBot/1.0" --no-verify-ssl https://example.com
 
-# Async mode via httpx (v1.5.0, unreleased; cannot be combined with -f)
+# Async mode via httpx (v1.5.0, experimental; cannot be combined with -f)
 httpcheck --async @examples/domains.txt
 
 # Legacy script usage (still supported)
 python3 httpcheck.py https://example.com
 ```
 
-Config file defaults (v1.5.0, unreleased): `~/.httpcheck.toml` (user) and
+Config file defaults (v1.5.0): `~/.httpcheck.toml` (user) and
 `./.httpcheck.toml` (project, overrides user). CLI flags always take precedence.
 
 ### Code Quality Standards
@@ -85,11 +85,11 @@ httpcheck/
 ├── __init__.py             # Package initialization and public API
 ├── cli.py                  # Argument parser and main entry point
 ├── common.py               # Shared constants, types, utilities
-├── config.py               # TOML config file loading (v1.5.0, unreleased)
+├── config.py               # TOML config file loading (v1.5.0)
 ├── tld_manager.py          # TLD validation with JSON caching
 ├── file_handler.py         # File input with security validation
 ├── site_checker.py         # HTTP request handling and retry logic
-├── async_site_checker.py   # Async I/O for concurrent checks (httpx; v1.5.0, unreleased)
+├── async_site_checker.py   # Async I/O for concurrent checks (httpx; v1.5.0, experimental)
 ├── output_formatter.py     # Multiple output formats (table/JSON/CSV)
 ├── notification.py         # System notifications (macOS/Linux)
 ├── logger.py               # Centralized logging system
@@ -236,7 +236,7 @@ python3 -m pytest tests/ -v  # All tests pass
 python3 httpcheck.py -f @examples/domains.txt  # Threading works
 ```
 
-## 🚀 Next Steps Priority (v1.5.0 Development)
+## 🚀 Next Steps Priority (v1.6.0 Development)
 
 ### ✅ v1.4.x COMPLETED (through v1.4.3, March 2026)
 - ✅ **Full modular architecture** (9 modules)
@@ -249,13 +249,13 @@ python3 httpcheck.py -f @examples/domains.txt  # Threading works
 - ✅ **Centralized logging** (`logger.py`)
 - ✅ **Modular CLI** (`cli.py` entry point)
 
-### 🎯 v1.5.0 Roadmap (target October 2026, not yet released)
+### ✅ v1.5.0 COMPLETED (released 2026-10-17)
 1. ✅ **Async I/O** - `async_site_checker.py` with httpx (`--async`)
 2. ✅ **Configuration File Support** - User-defined defaults (`~/.httpcheck.toml`, `./.httpcheck.toml`)
 3. ✅ **Async benchmark** against v1.4.3 (2026-10-14): target not met, see
    `docs/development/ASYNC_BENCHMARK.md`
 4. ✅ **`--async` ships as experimental** with no speed claim (decided 2026-10-14)
-5. ⏳ **Release**
+5. ✅ **Release**
 
 ### 🔭 v1.6.0 Roadmap (target Q1 2027)
 - ⏳ **Monitoring Mode** - Continuous site monitoring (moved from v1.5.0; not started)

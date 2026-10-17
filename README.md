@@ -23,8 +23,8 @@
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
-* **Current Version**: 1.4.3 (Enterprise-Grade Improvements)
-* **Target Version**: 1.5.0 (Performance & Configuration Features)
+* **Current Version**: 1.5.0 (Async I/O & Configuration)
+* **Next Version**: 1.6.0 (Monitoring Mode, target Q1 2027)
 * **Programming Language**: Python 3.10+
 * **Author**: Thomas Juul Dyhr
 * **Purpose**: Advanced HTTP status checker with monitoring capabilities
@@ -33,9 +33,21 @@
 
 ## 🚀 Release Status
 
-**httpcheck v1.4.3 has been released! 🎉**
+**httpcheck v1.5.0 has been released! 🎉**
 
-✅ **NEW in v1.4.3 (Published to PyPI):**
+✅ **NEW in v1.5.0:**
+- **Configuration Files**: User-defined defaults in `~/.httpcheck.toml` and
+  `./.httpcheck.toml` (the project file overrides the user file); CLI flags always
+  take precedence
+- **Async I/O** (experimental): `--async` uses an httpx-based concurrent path. In
+  the [benchmark against v1.4.3](docs/development/ASYNC_BENCHMARK.md) it is not
+  faster than `-f` at the same `--workers`; for speed, raise `-f --workers`
+- **Python 3.10+**: v1.5.0 drops Python 3.9 support (pip on Python 3.9 keeps
+  installing 1.4.3); Python 3.13 and 3.14 are tested in CI
+- **Retry fix**: with `--follow-redirects http-only` or `https-only`, retries now
+  work (1.4.3 reported the site as failed without retrying)
+
+✅ **v1.4.2-1.4.3 (Published to PyPI):**
 - **Structured Logging**: --debug, --log-file, --log-json flags for production monitoring
 - **Comprehensive Testing**: 297 tests with 88% coverage (CLI: 94%)
 - **Professional Documentation**: 24-page documentation with ReadTheDocs theme
@@ -49,15 +61,7 @@
 - **Multiple Output Formats**: JSON and CSV support
 - **Advanced Request Control**: Custom headers, SSL options
 
-🚀 **Next: v1.5.0 (target October 2026)**: done on `main`, not yet released
-- **Async I/O** (experimental): `--async` uses an httpx-based concurrent path. In
-  the [benchmark against v1.4.3](docs/development/ASYNC_BENCHMARK.md) it is not
-  faster than `-f` at the same `--workers`; for speed, raise `-f --workers`
-- **Configuration Files**: User-defined defaults in `~/.httpcheck.toml` and
-  `./.httpcheck.toml`
-- **Python 3.10+**: v1.5.0 drops Python 3.9 support
-
-🔭 **Then: v1.6.0 (target Q1 2027)**
+🔭 **Next: v1.6.0 (target Q1 2027)**
 - **Monitoring Mode**: Continuous site monitoring with notifications
 - **Enhanced UX**: Colored output and improved progress reporting
 

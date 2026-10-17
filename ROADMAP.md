@@ -1,8 +1,8 @@
 # httpcheck Development Roadmap
 
-**Status snapshot (2026-10-10)**
-- Current release: 1.4.3 (2026-03-09) ✅
-- v1.5.0: async I/O ✅, config ✅ — release targeting October 2026
+**Status snapshot (2026-10-17)**
+- Current release: 1.5.0 (2026-10-17) ✅
+- v1.5.0: async I/O ✅ (experimental), config ✅ — released
 - Monitoring mode moved from v1.5.0 to v1.6.0 (target Q1 2027); not started
 - Test coverage: 90% | pylint: 10.0/10 | Security: clean
 
@@ -11,10 +11,10 @@ archived for reference; active development is at the top.
 
 ---
 
-## ⏳ Version 1.5.0 - Async Performance & Configuration (Target: October 2026)
+## ✅ Version 1.5.0 - Async Performance & Configuration (Released: 2026-10-17)
 
-**Focus**: Performance via async I/O and user-defined defaults. Both are done on
-`main`; v1.5.0 drops Python 3.9 (`requires-python >=3.10`).
+**Focus**: Performance via async I/O and user-defined defaults. Both shipped in
+1.5.0, which drops Python 3.9 (`requires-python >=3.10`).
 
 ### ✅ Phase 1: Async I/O (COMPLETE)
 
