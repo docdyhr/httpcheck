@@ -1,9 +1,52 @@
 Changelog
 =========
 
-All notable changes to httpcheck are documented here.
+All notable changes to httpcheck are documented here. This page is a summary;
+`CHANGELOG.md <https://github.com/docdyhr/httpcheck/blob/main/CHANGELOG.md>`_ in
+the repository is the complete, authoritative list.
 
-[1.4.2] - Unreleased
+[1.5.0] - 2026-10-17
+--------------------
+
+Added
+~~~~~
+- Configuration file support: ``~/.httpcheck.toml`` (user) and ``./.httpcheck.toml``
+  (project). Defaults for timeout, retries, follow_redirects, output_format,
+  verify_ssl, workers, retry_delay, max_redirects and custom headers. The project
+  file overrides the user file; command-line flags always take precedence
+- ``load_config()`` and ``DEFAULT_CONFIG`` are part of the public API
+- Experimental ``--async`` mode using the httpx async client (cannot be combined
+  with ``--fast``). In the benchmark it is not faster than ``-f`` at the same
+  ``--workers``
+- Python 3.13 and 3.14 support
+
+Changed
+~~~~~~~
+- A site with no parseable hostname now reports the input as its domain instead of
+  ``None``
+- README and help text no longer claim a speedup for ``--async``
+
+Fixed
+~~~~~
+- With ``--follow-redirects http-only`` or ``https-only``, retries now work. 1.4.3
+  reported the site as failed without retrying
+- TLD cache handling is sturdier: cache, local file and network fallbacks, and
+  saving no longer fails when no update time is set
+
+Removed
+~~~~~~~
+- **Python 3.9 support**: ``requires-python`` is now ``>=3.10``. pip on Python 3.9
+  keeps installing 1.4.3
+
+[1.4.3] - 2026-03-09
+--------------------
+
+Fixed
+~~~~~
+- Version bump to republish to PyPI after an environment policy update
+- CI/CD pipeline: manual dispatch support and scoped security scanning
+
+[1.4.2] - 2026-01-08
 --------------------
 
 Added
