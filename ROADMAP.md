@@ -38,8 +38,12 @@ archived for reference; active development is at the top.
 
 ### 📊 v1.5.0 Success Metrics
 
-- [ ] Async mode ≥2× faster for 100+ concurrent checks (not met in the 2026-10-14 benchmark)
-- [ ] Config file adopted with zero regressions on existing CLI
+- [ ] Async mode ≥2× faster for 100+ concurrent checks: **not met** (0.98× at default
+  workers in the 2026-10-14 benchmark). Accepted for v1.5.0: `--async` ships as
+  experimental, see [ASYNC_BENCHMARK.md](docs/development/ASYNC_BENCHMARK.md). Any
+  further async tuning is v1.6.0+ work.
+- [x] Config file added with zero regressions on existing CLI (398 passed, 1 skipped
+  on `main`, 2026-10-17; CLI flags still override the config file)
 - [x] Test coverage ≥80%, pylint 10.0/10 (90%, 10.0/10 on `main`, 2026-10-10)
 
 ---
