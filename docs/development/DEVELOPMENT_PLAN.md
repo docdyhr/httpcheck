@@ -6,17 +6,16 @@ This document outlines the development plan for httpcheck, tracking completed wo
 the active roadmap through v2.0.0. [ROADMAP.md](../../ROADMAP.md) is the canonical,
 prioritised feature list; this file summarises it.
 
-## Current State (`main`, 2026-10-10)
+## Current State (`main`, 2026-10-17)
 
-- **Released**: 1.4.3 (2026-03-09, PyPI)
-- **Unreleased on `main`**: async I/O (`--async`) and configuration files — shipping as
-  v1.5.0 (target October 2026)
+- **Released**: 1.5.0 (2026-10-17, PyPI)
+- **New in 1.5.0**: async I/O (`--async`, experimental) and configuration files
 - **Architecture**: 11 specialized modules plus `__init__.py`
 - **Dependencies**: requests, httpx, tabulate, tqdm, validators, tomli on Python 3.10
   (pyproject.toml)
-- **Tests**: 388 tests (387 passed, 1 skipped), 90% coverage (exceeds 70% target)
+- **Tests**: 399 tests (398 passed, 1 skipped), 90% coverage (exceeds 70% target)
 - **Code Quality**: pylint 10.0/10 maintained
-- **Python Floor**: 3.10+ on `main` (1.4.3 still supports 3.9); CI tests 3.10–3.14
+- **Python Floor**: 3.10+ (1.4.3 still supports 3.9); CI tests 3.10–3.14
 - **Security**: pip-audit clean; no known vulnerabilities
 
 ## Completed Work
@@ -52,21 +51,21 @@ Per release, as recorded in [CHANGELOG.md](../../CHANGELOG.md).
 
 Also in v1.4.x: configurable retry delay (`--retry-delay`).
 
-### Unreleased on `main` — v1.5.0
+### v1.5.0 — Async I/O & Configuration (2026-10-17)
 - [x] `async_site_checker.py` — async I/O via httpx (`--async`), with pytest-asyncio tests
 - [x] `config.py` — TOML configuration files (`~/.httpcheck.toml`, `./.httpcheck.toml`)
 - [x] Python 3.13 and 3.14 added; Python 3.9 dropped (`requires-python >=3.10`)
 - [x] Benchmark async against v1.4.3: target not met ([results](ASYNC_BENCHMARK.md))
 - [x] `--async` ships as experimental, with no speed claim (decided 2026-10-14)
-- [ ] Release
+- [x] Release
 
 ## Active Roadmap
 
 Summary of [ROADMAP.md](../../ROADMAP.md):
 
-- **v1.5.0 — Async I/O & Configuration (target October 2026)**: both features are done;
-  the 2026-10-14 benchmark found no async speedup, so `--async` ships as
-  experimental with no speed claim. What remains is the release itself.
+- **v1.5.0 — Async I/O & Configuration (released 2026-10-17)**: both features shipped;
+  the 2026-10-14 benchmark found no async speedup, so `--async` shipped as
+  experimental with no speed claim.
 - **v1.6.0 — Monitoring Mode & Enhanced Output (target Q1 2027)**: monitoring mode
   (moved from v1.5.0, not started) — continuous checks with persisted state, alert
   thresholds, webhook/email alerts, console dashboard; config profiles and env-var

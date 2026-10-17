@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-17
+
 ### Added
 - **Configuration file support** (`~/.httpcheck.toml` and `./.httpcheck.toml`). User-defined defaults for timeout, retries, follow_redirects, output_format, verify_ssl, workers, retry_delay, max_redirects, and custom headers. Project-level config overrides user-level; CLI flags always take precedence.
 - `load_config()` and `DEFAULT_CONFIG` are now part of the public API (`from httpcheck import load_config`).

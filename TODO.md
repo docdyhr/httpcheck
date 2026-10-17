@@ -2,8 +2,8 @@
 
 ## 🚀 PROJECT STATUS OVERVIEW
 
-**Current Version**: 1.4.3 (Released 2026-03-09 ✅)
-**Target Version**: 1.5.0 (Async I/O & Configuration, target October 2026)
+**Current Version**: 1.5.0 (Released 2026-10-17 ✅)
+**Next Version**: 1.6.0 (Monitoring Mode & Enhanced Output, target Q1 2027)
 **Project Health**: ✅ Excellent
 
 - **Test Coverage**: 90% (Target: 70% ✅)
@@ -11,7 +11,7 @@
 - **Code Quality**: pylint 10.0/10 ✅
 - **Security**: No vulnerabilities (pip-audit clean) ✅
 - **Architecture**: 11 specialized modules plus `__init__.py` ✅
-- **Release Status**: PyPI 1.4.3; async I/O and config files are merged on `main`, unreleased
+- **Release Status**: v1.5.0 released 2026-10-17 (config files, experimental async I/O)
 
 [ROADMAP.md](ROADMAP.md) is the canonical list of version targets and features;
 this file tracks the actionable tasks.
@@ -51,15 +51,15 @@ this file tracks the actionable tasks.
 
 ## 🎯 IMMEDIATE PRIORITIES
 
-### 1. Ship v1.5.0 (async I/O + config files) — target October 2026
+### 1. Ship v1.5.0 (async I/O + config files) — released 2026-10-17
 
 - [x] **Async benchmark** - Compare `--async` against v1.4.3 (target: ≥2× faster
   for 100+ concurrent checks). Done 2026-10-14: **not met** (0.98× at default
   workers); see `docs/development/ASYNC_BENCHMARK.md`
 - [x] **Decide how `--async` ships** - Decided 2026-10-14: ship as experimental with
   no speed claim (option 1 in `docs/development/ASYNC_BENCHMARK.md`)
-- [ ] **Release** - Follow `docs/release_process.md`; CHANGELOG `[Unreleased]`
-  becomes `[1.5.0]`. Note: v1.5.0 drops Python 3.9 (`requires-python >=3.10`)
+- [x] **Release** - Followed `docs/release_process.md`; CHANGELOG `[Unreleased]`
+  became `[1.5.0]`. Note: v1.5.0 drops Python 3.9 (`requires-python >=3.10`)
 
 ### 2. Start v1.6.0 monitoring mode — target Q1 2027
 
@@ -76,7 +76,7 @@ this file tracks the actionable tasks.
 
 ---
 
-## 🚀 v1.5.0 DEVELOPMENT — Async I/O & Configuration (target October 2026)
+## 🚀 v1.5.0 DEVELOPMENT — Async I/O & Configuration (released 2026-10-17)
 
 ### ✅ Phase 1: Async I/O Implementation (COMPLETED)
 
@@ -271,11 +271,11 @@ httpcheck/
 ├── __init__.py             # Package API
 ├── cli.py                  # Argument parser and entry point
 ├── common.py               # Shared utilities
-├── config.py               # TOML config file loading (unreleased, v1.5.0)
+├── config.py               # TOML config file loading (v1.5.0)
 ├── tld_manager.py          # TLD validation (Singleton)
 ├── file_handler.py         # File input processing
 ├── site_checker.py         # HTTP checking logic (threaded)
-├── async_site_checker.py   # Async I/O checks (httpx; unreleased, v1.5.0)
+├── async_site_checker.py   # Async I/O checks (httpx; experimental, v1.5.0)
 ├── output_formatter.py     # Multiple output formats
 ├── notification.py         # System notifications
 ├── logger.py               # Centralized logging
@@ -303,11 +303,10 @@ httpcheck/
 
 ## 🎯 NEXT ACTIONS (Priority Order)
 
-1. **Release v1.5.0** - Config files plus experimental async (target October 2026)
-2. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
+1. **Design monitoring mode** - First v1.6.0 task (target Q1 2027)
 
 ---
 
-**Last Updated**: 2026-10-10
-**Maintainer Note**: v1.5.0 ships the finished async I/O and configuration work;
-monitoring mode moved to v1.6.0 so it no longer holds up the release.
+**Last Updated**: 2026-10-17
+**Maintainer Note**: v1.5.0 shipped the finished async I/O and configuration work;
+monitoring mode moved to v1.6.0 so it did not hold up the release.
