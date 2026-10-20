@@ -159,7 +159,7 @@ macos = [
 ]
 dev = [
     "pytest>=7.0", "pytest-mock>=3.0", "pytest-cov>=4.0", "pytest-benchmark>=5.0",
-    "pytest-asyncio>=0.23.0", "pylint>=3.1.0", "mypy==1.20.2",
+    "pytest-asyncio>=0.23.0", "pylint>=3.1.0", "mypy==2.4.0",
     "types-requests>=2.31.0", "types-tabulate>=0.9.0", "types-tqdm>=4.66.0", "tomli>=2.0.0"
 ]
 build = ["py2app>=0.28"]

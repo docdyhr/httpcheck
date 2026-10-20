@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Release docs: `docs/release_process.md` describes the release-PR flow and that pushing a version tag publishes to PyPI immediately; `docs/PYPI_PUBLICATION_GUIDE.md` no longer points at a non-existent `release.yml` or a token secret; the Sphinx changelog now covers 1.4.3 and 1.5.0.
+- Development: the `dev` extras now pin `mypy==2.4.0` (was `1.20.2`, #55); `mypy httpcheck` passes unchanged in CI. Re-run `pip install -e ".[dev]"` to pick it up locally.
 
 ## [1.5.0] - 2026-10-17
 
