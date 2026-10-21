@@ -23,7 +23,7 @@
 <img src="images/onSiteLogo.png" alt="onSite Logo" width="50%">
 
 * **Name**: httpcheck (CLI) / onSite (Menu Bar App)
-* **Current Version**: 1.5.0 (Async I/O & Configuration)
+* **Current Version**: 1.5.1 (security patch for 1.5.0: Async I/O & Configuration)
 * **Next Version**: 1.6.0 (Monitoring Mode, target Q1 2027)
 * **Programming Language**: Python 3.10+
 * **Author**: Thomas Juul Dyhr
@@ -33,7 +33,11 @@
 
 ## 🚀 Release Status
 
-**httpcheck v1.5.0 has been released! 🎉**
+**httpcheck v1.5.1 has been released! 🎉**
+
+✅ **v1.5.1 (security patch):** installing httpcheck now also requires patched
+versions of `urllib3`, `certifi`, `idna`, `anyio` and `h11`, so an install into
+an existing environment cannot keep vulnerable copies. No behaviour changes.
 
 ✅ **NEW in v1.5.0:**
 - **Configuration Files**: User-defined defaults in `~/.httpcheck.toml` and

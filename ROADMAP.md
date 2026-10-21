@@ -1,7 +1,7 @@
 # httpcheck Development Roadmap
 
-**Status snapshot (2026-10-17)**
-- Current release: 1.5.0 (2026-10-17) ✅
+**Status snapshot (2026-10-22)**
+- Current release: 1.5.1 (2026-10-22) ✅ — security floors for transitive dependencies
 - v1.5.0: async I/O ✅ (experimental), config ✅ — released
 - Monitoring mode moved from v1.5.0 to v1.6.0 (target Q1 2027); not started
 - Test coverage: 90% | pylint: 10.0/10 | Security: clean

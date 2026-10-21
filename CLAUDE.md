@@ -8,7 +8,7 @@ This file provides comprehensive guidance for AI assistants working with the htt
 features including threading, redirect handling, TLD validation, and macOS
 integration.
 
-- **Current Version**: 1.5.0 (RELEASED ✅; async I/O and config files; drops Python 3.9)
+- **Current Version**: 1.5.1 (RELEASED ✅ 2026-10-22; security floors for transitive dependencies. 1.5.0 added async I/O and config files and dropped Python 3.9)
 - **Next Version**: 1.6.0 (monitoring mode, target Q1 2027; not started)
 - **Architecture**: Fully modular (11 specialized modules)
 - **Code Quality**: Maintains pylint 10.0/10 score
