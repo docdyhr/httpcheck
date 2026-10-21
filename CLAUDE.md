@@ -147,6 +147,12 @@ dependencies = [
     "tqdm>=4.67.0",
     "validators>=0.22.0",
     "tomli>=2.0.0; python_version < '3.11'",
+    # Security floors for transitive dependencies (pulled in by requests/httpx)
+    "urllib3>=2.8.0",
+    "certifi>=2026.10.19",
+    "idna>=3.15",
+    "anyio>=4.14.2",
+    "h11>=0.16.0",
 ]
 
 [project.optional-dependencies]
