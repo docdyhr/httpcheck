@@ -5,6 +5,17 @@ All notable changes to httpcheck are documented here. This page is a summary;
 `CHANGELOG.md <https://github.com/docdyhr/httpcheck/blob/main/CHANGELOG.md>`_ in
 the repository is the complete, authoritative list.
 
+[1.5.1] - 2026-10-22
+--------------------
+
+Security
+~~~~~~~~
+- Installing httpcheck now requires patched versions of five packages that
+  ``requests`` and ``httpx`` pull in: ``urllib3>=2.8.0``, ``certifi>=2026.10.19``,
+  ``idna>=3.15``, ``anyio>=4.14.2`` and ``h11>=0.16.0``. An install into an
+  existing environment can no longer keep vulnerable versions. No behaviour
+  changes
+
 [1.5.0] - 2026-10-17
 --------------------
 

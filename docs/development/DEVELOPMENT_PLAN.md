@@ -6,13 +6,13 @@ This document outlines the development plan for httpcheck, tracking completed wo
 the active roadmap through v2.0.0. [ROADMAP.md](../../ROADMAP.md) is the canonical,
 prioritised feature list; this file summarises it.
 
-## Current State (`main`, 2026-10-17)
+## Current State (`main`, 2026-10-22)
 
-- **Released**: 1.5.0 (2026-10-17, PyPI)
+- **Released**: 1.5.1 (2026-10-22, PyPI): security floors for transitive dependencies
 - **New in 1.5.0**: async I/O (`--async`, experimental) and configuration files
 - **Architecture**: 11 specialized modules plus `__init__.py`
-- **Dependencies**: requests, httpx, tabulate, tqdm, validators, tomli on Python 3.10
-  (pyproject.toml)
+- **Dependencies**: requests, httpx, tabulate, tqdm, validators, tomli on Python 3.10,
+  plus security floors for urllib3, certifi, idna, anyio and h11 (pyproject.toml)
 - **Tests**: 399 tests (398 passed, 1 skipped), 90% coverage (exceeds 70% target)
 - **Code Quality**: pylint 10.0/10 maintained
 - **Python Floor**: 3.10+ (1.4.3 still supports 3.9); CI tests 3.10–3.14

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-22
+
 ### Security
 - Runtime dependencies now set minimum versions for five packages that `requests` and `httpx` pull in: `urllib3>=2.8.0`, `certifi>=2026.10.19`, `idna>=3.15`, `anyio>=4.14.2` and `h11>=0.16.0`. A fresh install already got patched versions, but installing into an existing environment could keep vulnerable ones. Among the advisories this excludes: certifi's emSign root CAs with compromised intermediate keys (GHSA-6q48-6c7w-9gw2), AnyIO TLS host name encoding allowing certificate spoofing in `--async` mode (GHSA-82r6-8w77-94w6), h11 accepting malformed chunked bodies (GHSA-vqfr-h8mv-ghfj), and urllib3 forwarding sensitive headers across origins on redirects (GHSA-qccp-gfcp-xxvc).
 

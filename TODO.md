@@ -2,7 +2,7 @@
 
 ## 🚀 PROJECT STATUS OVERVIEW
 
-**Current Version**: 1.5.0 (Released 2026-10-17 ✅)
+**Current Version**: 1.5.1 (Released 2026-10-22 ✅)
 **Next Version**: 1.6.0 (Monitoring Mode & Enhanced Output, target Q1 2027)
 **Project Health**: ✅ Excellent
 
@@ -11,7 +11,8 @@
 - **Code Quality**: pylint 10.0/10 ✅
 - **Security**: No vulnerabilities (pip-audit clean) ✅
 - **Architecture**: 11 specialized modules plus `__init__.py` ✅
-- **Release Status**: v1.5.0 released 2026-10-17 (config files, experimental async I/O)
+- **Release Status**: v1.5.1 released 2026-10-22 (security floors for transitive
+  dependencies); v1.5.0 released 2026-10-17 (config files, experimental async I/O)
 
 [ROADMAP.md](ROADMAP.md) is the canonical list of version targets and features;
 this file tracks the actionable tasks.
