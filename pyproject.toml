@@ -58,7 +58,7 @@ dev = [
     "pytest>=7.0",
     "pytest-mock>=3.0",
     "pytest-cov>=4.0",
-    "pytest-benchmark>=5.0",
+    "pytest-benchmark>=5.3.1",  # 5.3.0 breaks on pytest 9.2 (Function._nodeid removed)
     "pytest-asyncio>=0.23.0",
     "pylint>=3.1.0",
     "mypy==2.4.0",
